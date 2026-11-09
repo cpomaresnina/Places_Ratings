@@ -1,0 +1,106 @@
+{
+  "landing_path": "/Volumes/places_ratings/landing/source_files",
+  "endpoint": "https://places.googleapis.com/v1/places:searchNearby",
+  "field_mask": [
+    "places.id",
+    "places.displayName",
+    "places.primaryType",
+    "places.types",
+    "places.formattedAddress",
+    "places.location",
+    "places.businessStatus",
+    "places.rating",
+    "places.userRatingCount"
+  ],
+  "secret_scope": "places-explorer",
+  "secret_key": "google-places-api-key",
+  "areas": {
+  "sopocachi": {
+    "center": {
+      "latitude": -16.5108331,
+      "longitude": -68.1265597
+    },
+    "study_radius_meters": 600
+  },
+  "calacoto_el_bosque": {
+    "center": {
+      "latitude": -16.540707581172857,
+      "longitude": -68.08375791504788
+    },
+    "study_radius_meters": 600,
+    "parent_area": "calacoto",
+    "city": "la_paz"
+  },
+  "calacoto_san_miguel": {
+    "center": {
+      "latitude": -16.539154202002806,
+      "longitude": -68.07739742119121
+    },
+    "study_radius_meters": 600,
+    "parent_area": "calacoto",
+    "city": "la_paz"
+  },
+  "calacoto_montenegro": {
+    "center": {
+      "latitude": -16.542593699449483,
+      "longitude": -68.0780778610696
+    },
+    "study_radius_meters": 600,
+    "parent_area": "calacoto",
+    "city": "la_paz"
+  },
+  "ciudad_satelite_tinku": {
+    "center": {
+      "latitude": -16.5233706978321,
+      "longitude": -68.1507870101477
+    },
+    "study_radius_meters": 600,
+    "parent_area": "ciudad_satelite",
+    "city": "el_alto"
+  }
+},
+  "categories": {
+    "cafes": [
+      "cafe",
+      "coffee_shop",
+      "coffee_stand"
+    ],
+    "restaurants": [
+      "restaurant"
+    ],
+    "hair_salons_barbers": [
+      "hair_salon",
+      "barber_shop",
+      "hair_care"
+    ],
+    "gyms": [
+      "gym",
+      "fitness_center"
+    ],
+    "veterinary_and_grooming": [
+      "veterinary_care",
+      "pet_care"
+    ],
+    "nightclubs": [
+      "night_club"
+    ],
+    "bars_pubs": [
+      "bar",
+      "pub",
+      "cocktail_bar",
+      "wine_bar",
+      "sports_bar",
+      "lounge_bar",
+      "bar_and_grill",
+      "beer_garden",
+      "brewpub",
+      "gastropub",
+      "irish_pub"
+    ]
+  },
+  "grid_spacing_meters": 300,
+  "query_radius_meters": 350,
+  "max_calls_per_run": 9,
+  "seconds_between_calls": 12,
+  "mapping_version": "0.2"
+}
