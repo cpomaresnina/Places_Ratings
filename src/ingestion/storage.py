@@ -38,6 +38,7 @@ def load_saved_queries(landing_path):
                 'file_path': str(file_path),
                 'study_area': document['study_area'],
                 'category': document['requested_category'],
+                'mapping_version': extraction.get('mapping_version', 'legacy'),
                 'extracted_at_utc': extracted_at.astimezone(timezone.utc).isoformat(),
                 'request_parameters': parameters,
                 # Compatibility: the first ten saved files used this exact mask.

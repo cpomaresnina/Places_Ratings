@@ -25,14 +25,46 @@
   },
   "categories": {
     "cafes": [
-      "cafe"
+      "cafe",
+      "coffee_shop",
+      "coffee_stand"
     ],
     "restaurants": [
       "restaurant"
+    ],
+    "hair_salons_barbers": [
+      "hair_salon",
+      "barber_shop",
+      "hair_care"
+    ],
+    "gyms": [
+      "gym",
+      "fitness_center"
+    ],
+    "veterinary_and_grooming": [
+      "veterinary_care",
+      "pet_care"
+    ],
+    "nightclubs": [
+      "night_club"
+    ],
+    "bars_pubs": [
+      "bar",
+      "pub",
+      "cocktail_bar",
+      "wine_bar",
+      "sports_bar",
+      "lounge_bar",
+      "bar_and_grill",
+      "beer_garden",
+      "brewpub",
+      "gastropub",
+      "irish_pub"
     ]
   },
   "grid_spacing_meters": 300,
   "query_radius_meters": 350,
   "max_calls_per_run": 9,
-  "seconds_between_calls": 12
+  "seconds_between_calls": 12,
+  "mapping_version": "0.2"
 }

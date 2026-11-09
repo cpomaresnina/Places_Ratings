@@ -40,16 +40,17 @@ def query_signature(area, category, parameters, field_mask):
     fields = ','.join(sorted(field_mask.split(',')))
     return (area, category, fields, json.dumps(normalized, sort_keys=True))
 
-def select_snapshot(queries, area, category, snapshot_date, endpoint):
+def select_snapshot(queries, area, category, snapshot_date, endpoint, mapping_version='legacy'):
     return [q for q in queries if
             q['study_area'] == area and q['category'] == category
             and q['extracted_at_utc'][:10] == snapshot_date
-            and q['endpoint'] == endpoint]
+            and q['endpoint'] == endpoint
+            and q.get('mapping_version', 'legacy') == mapping_version]
 
-def pending_grid_points(queries, area, category, snapshot_date, points, included_types, field_mask, endpoint):
+def pending_grid_points(queries, area, category, snapshot_date, points, included_types, field_mask, endpoint, mapping_version='legacy'):
     completed = {
         query_signature(area, category, q['request_parameters'], q['field_mask'])
-        for q in select_snapshot(queries, area, category, snapshot_date, endpoint)
+        for q in select_snapshot(queries, area, category, snapshot_date, endpoint, mapping_version)
     }
     return [p for p in points if query_signature(
         area, category, build_payload(included_types, p), field_mask

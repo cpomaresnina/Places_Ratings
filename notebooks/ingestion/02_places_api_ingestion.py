@@ -10,6 +10,7 @@
 # MAGIC Modules belong in `src/ingestion/` as Python files, not Databricks notebooks.
 # MAGIC The Git repository root must contain both `config/places_search.json` and `src/`.
 # MAGIC Same-day equivalent requests are skipped. A new UTC date intentionally creates a new snapshot.
+# MAGIC Requests from a different mapping version are not considered completed for this version.
 # MAGIC Search coverage remains partial. This runner supports one active execution at a time.
 # MAGIC Storage setup and secret provisioning remain in separate setup steps.
 
@@ -61,11 +62,12 @@ def show_plan():
     pending = search_plan.pending_grid_points(
         queries, STUDY_AREA, SELECTED_CATEGORY, SNAPSHOT_DATE_UTC, points,
         config['categories'][SELECTED_CATEGORY], ','.join(config['field_mask']),
-        config['endpoint']
+        config['endpoint'], config['mapping_version']
     )
     print(f'Saved queries found: {len(queries)}')
     print(f'Files requiring review: {len(errors)}')
     print(f'Selected category: {SELECTED_CATEGORY}')
+    print(f"Mapping version: {config['mapping_version']}")
     print(f'Snapshot date (UTC): {SNAPSHOT_DATE_UTC}')
     print(f'Grid points: {len(points)}; pending queries: {len(pending)}')
     for error in errors:
@@ -104,3 +106,50 @@ finally:
 # MAGIC At most nine calls are attempted per execution, with no automatic retries.
 # MAGIC Inspect files after failures; a timeout or failed save can require a repeated request.
 # MAGIC Keep existing observed files; no migration or deletion is performed here.
+
+# COMMAND ----------
+
+# Audit saved coverage for every category in the selected area and snapshot.
+
+queries, errors = storage.load_saved_queries(config["landing_path"])
+
+points = search_plan.build_grid(
+    config["areas"][STUDY_AREA]["center"],
+    STUDY_AREA,
+    config["grid_spacing_meters"],
+    config["query_radius_meters"]
+)
+
+for category, included_types in config["categories"].items():
+    matching_queries = search_plan.select_snapshot(
+        queries,
+        STUDY_AREA,
+        category,
+        SNAPSHOT_DATE_UTC,
+        config["endpoint"],
+        config["mapping_version"]
+    )
+
+    pending = search_plan.pending_grid_points(
+        queries,
+        STUDY_AREA,
+        category,
+        SNAPSHOT_DATE_UTC,
+        points,
+        included_types,
+        ",".join(config["field_mask"]),
+        config["endpoint"],
+        config["mapping_version"]
+    )
+
+    print({
+        "category": category,
+        "saved_responses": len(matching_queries),
+        "pending_points": len(pending),
+        "responses_at_limit": sum(
+            query["potentially_truncated"]
+            for query in matching_queries
+        )
+    })
+
+print(f"Files requiring review: {len(errors)}")

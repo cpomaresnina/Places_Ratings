@@ -13,6 +13,9 @@ def run_pending_grid(config, area, category, snapshot_date, api_key_provider, *,
     LANDING_PATH = Path(config['landing_path'])
     ENDPOINT = config['endpoint']
     FIELD_MASK = ','.join(config['field_mask'])
+    mapping_version = config['mapping_version']
+    if not isinstance(mapping_version, str) or not mapping_version.strip():
+        raise ValueError('mapping_version must be a non-empty string.')
     STUDY_AREA = area
     SELECTED_CATEGORY = category
     SNAPSHOT_DATE_UTC = snapshot_date
@@ -38,7 +41,7 @@ def run_pending_grid(config, area, category, snapshot_date, api_key_provider, *,
         raise RuntimeError('Review unreadable files before running extraction.')
     pending = pending_grid_points(
         queries, STUDY_AREA, SELECTED_CATEGORY, SNAPSHOT_DATE_UTC, search_points,
-        CATEGORY_TYPES[category], FIELD_MASK, ENDPOINT
+        CATEGORY_TYPES[category], FIELD_MASK, ENDPOINT, mapping_version
     )
     if not pending:
         print('Pending queries: 0. No API calls made.')
@@ -77,6 +80,7 @@ def run_pending_grid(config, area, category, snapshot_date, api_key_provider, *,
                 if 'error' in response_data or not isinstance(places, list) or not all(isinstance(p, dict) for p in places):
                     raise ValueError('Invalid response structure')
                 extraction = {
+                    'mapping_version': mapping_version,
                     'extracted_at_utc': extracted_at,
                     'request_parameters': payload,
                     'endpoint': ENDPOINT,
