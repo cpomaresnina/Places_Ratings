@@ -1,0 +1,20 @@
+{
+  "enrichment_version": "context_v2",
+  "discovery_mapping_version": "0.2",
+  "discovery_date_utc": "2026-11-09",
+  "endpoint": "https://places.googleapis.com/v1/places",
+  "field_mask": [
+    "id",
+    "websiteUri",
+    "regularOpeningHours",
+    "googleMapsUri",
+    "attributions",
+    "googleMapsLinks",
+    "nationalPhoneNumber",
+    "containingPlaces",
+    "pureServiceAreaBusiness",
+    "priceLevel"
+],
+  "max_calls_per_run": 5,
+  "seconds_between_calls": 1
+}
