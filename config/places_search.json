@@ -1,0 +1,38 @@
+{
+  "landing_path": "/Volumes/places_ratings/landing/source_files",
+  "endpoint": "https://places.googleapis.com/v1/places:searchNearby",
+  "field_mask": [
+    "places.id",
+    "places.displayName",
+    "places.primaryType",
+    "places.types",
+    "places.formattedAddress",
+    "places.location",
+    "places.businessStatus",
+    "places.rating",
+    "places.userRatingCount"
+  ],
+  "secret_scope": "places-explorer",
+  "secret_key": "google-places-api-key",
+  "areas": {
+    "sopocachi": {
+      "center": {
+        "latitude": -16.5108331,
+        "longitude": -68.1265597
+      },
+      "study_radius_meters": 600
+    }
+  },
+  "categories": {
+    "cafes": [
+      "cafe"
+    ],
+    "restaurants": [
+      "restaurant"
+    ]
+  },
+  "grid_spacing_meters": 300,
+  "query_radius_meters": 350,
+  "max_calls_per_run": 9,
+  "seconds_between_calls": 12
+}
