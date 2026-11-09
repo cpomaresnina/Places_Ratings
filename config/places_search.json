@@ -15,14 +15,50 @@
   "secret_scope": "places-explorer",
   "secret_key": "google-places-api-key",
   "areas": {
-    "sopocachi": {
-      "center": {
-        "latitude": -16.5108331,
-        "longitude": -68.1265597
-      },
-      "study_radius_meters": 600
-    }
+  "sopocachi": {
+    "center": {
+      "latitude": -16.5108331,
+      "longitude": -68.1265597
+    },
+    "study_radius_meters": 600
   },
+  "calacoto_el_bosque": {
+    "center": {
+      "latitude": -16.540707581172857,
+      "longitude": -68.08375791504788
+    },
+    "study_radius_meters": 600,
+    "parent_area": "calacoto",
+    "city": "la_paz"
+  },
+  "calacoto_san_miguel": {
+    "center": {
+      "latitude": -16.539154202002806,
+      "longitude": -68.07739742119121
+    },
+    "study_radius_meters": 600,
+    "parent_area": "calacoto",
+    "city": "la_paz"
+  },
+  "calacoto_montenegro": {
+    "center": {
+      "latitude": -16.542593699449483,
+      "longitude": -68.0780778610696
+    },
+    "study_radius_meters": 600,
+    "parent_area": "calacoto",
+    "city": "la_paz"
+  },
+  "ciudad_satelite_tinku": {
+    "center": {
+      "latitude": -16.5233706978321,
+      "longitude": -68.1507870101477
+    },
+    "study_radius_meters": 600,
+    "parent_area": "ciudad_satelite",
+    "city": "el_alto"
+  }
+},
   "categories": {
     "cafes": [
       "cafe",

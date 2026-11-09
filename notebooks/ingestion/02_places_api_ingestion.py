@@ -45,8 +45,8 @@ print(f'Repository: {REPO_ROOT}')
 with (REPO_ROOT / 'config/places_search.json').open(encoding='utf-8') as file:
     config = json.load(file)
 
-STUDY_AREA = 'sopocachi'
-SELECTED_CATEGORY = 'restaurants'
+STUDY_AREA = 'ciudad_satelite_tinku'
+SELECTED_CATEGORY = 'cafes'
 SNAPSHOT_DATE_UTC = datetime.now(timezone.utc).date().isoformat()
 RUN_LIVE_EXTRACTION = False
 
@@ -78,21 +78,84 @@ inventory_errors = show_plan()
 
 # COMMAND ----------
 
-# Execute ingestion only when deliberately enabled, then verify persisted progress.
+# Plan or extract all configured categories for the selected study area.
+
+categories_to_run = list(config["categories"])
+
 try:
-    if inventory_errors:
-        raise RuntimeError('Review unreadable files before extraction.')
-    if RUN_LIVE_EXTRACTION:
+    for category in categories_to_run:
+        queries, errors = storage.load_saved_queries(
+            config["landing_path"]
+        )
+
+        if errors:
+            raise RuntimeError(
+                "Review unreadable files before continuing."
+            )
+
+        points = search_plan.build_grid(
+            config["areas"][STUDY_AREA]["center"],
+            STUDY_AREA,
+            config["grid_spacing_meters"],
+            config["query_radius_meters"]
+        )
+
+        pending = search_plan.pending_grid_points(
+            queries,
+            STUDY_AREA,
+            category,
+            SNAPSHOT_DATE_UTC,
+            points,
+            config["categories"][category],
+            ",".join(config["field_mask"]),
+            config["endpoint"],
+            config["mapping_version"]
+        )
+
+        print(f"\nCategory: {category} | Pending: {len(pending)}")
+
+        if not RUN_LIVE_EXTRACTION or not pending:
+            continue
+
         places_api.run_pending_grid(
-            config, STUDY_AREA, SELECTED_CATEGORY, SNAPSHOT_DATE_UTC,
+            config,
+            STUDY_AREA,
+            category,
+            SNAPSHOT_DATE_UTC,
             api_key_provider=lambda: dbutils.secrets.get(
-                scope=config['secret_scope'], key=config['secret_key']
+                scope=config["secret_scope"],
+                key=config["secret_key"]
             ),
             confirm_live_calls=True
         )
-        show_plan()
-    else:
-        print('Plan only: no API calls made and no files written.')
+
+        # Stop the batch if this category did not finish successfully.
+        queries, errors = storage.load_saved_queries(
+            config["landing_path"]
+        )
+
+        remaining = search_plan.pending_grid_points(
+            queries,
+            STUDY_AREA,
+            category,
+            SNAPSHOT_DATE_UTC,
+            points,
+            config["categories"][category],
+            ",".join(config["field_mask"]),
+            config["endpoint"],
+            config["mapping_version"]
+        )
+
+        if errors or remaining:
+            print(
+                f"Batch stopped at {category}. "
+                f"Remaining points: {len(remaining)}"
+            )
+            break
+
+    if not RUN_LIVE_EXTRACTION:
+        print("\nPlan only: no API calls made.")
+
 finally:
     RUN_LIVE_EXTRACTION = False
 
@@ -153,3 +216,51 @@ for category, included_types in config["categories"].items():
     })
 
 print(f"Files requiring review: {len(errors)}")
+
+# COMMAND ----------
+
+# Audit all configured areas and categories without calling Google.
+
+queries, errors = storage.load_saved_queries(config["landing_path"])
+
+incomplete = []
+expected_queries = 0
+
+for area, area_config in config["areas"].items():
+    points = search_plan.build_grid(
+        area_config["center"],
+        area,
+        config["grid_spacing_meters"],
+        config["query_radius_meters"]
+    )
+
+    for category, included_types in config["categories"].items():
+        expected_queries += len(points)
+
+        pending = search_plan.pending_grid_points(
+            queries,
+            area,
+            category,
+            SNAPSHOT_DATE_UTC,
+            points,
+            included_types,
+            ",".join(config["field_mask"]),
+            config["endpoint"],
+            config["mapping_version"]
+        )
+
+        if pending:
+            incomplete.append({
+                "area": area,
+                "category": category,
+                "pending_points": len(pending)
+            })
+
+print(f"Snapshot date (UTC): {SNAPSHOT_DATE_UTC}")
+print(f"Mapping version: {config['mapping_version']}")
+print(f"Expected queries: {expected_queries}")
+print(f"Files requiring review: {len(errors)}")
+print(f"Incomplete area/category combinations: {len(incomplete)}")
+
+for item in incomplete:
+    print(item)
