@@ -1,0 +1,1244 @@
+{
+  "datasets": [
+    {
+      "name": "f0b23e9e",
+      "displayName": "Business snapshots",
+      "queryLines": [
+        "-- Load business snapshots from Gold for dashboard analysis.\r\n",
+        "SELECT\r\n",
+        "    run_id,\r\n",
+        "    business_key,\r\n",
+        "    place_id,\r\n",
+        "    business_name,\r\n",
+        "        -- Translate analytical category labels for dashboard display.\r\n",
+        "    CASE primary_category_name\r\n",
+        "        WHEN 'Cafeterías' THEN 'Cafes'\r\n",
+        "        WHEN 'Restaurantes' THEN 'Restaurants'\r\n",
+        "        WHEN 'Bares y pubs' THEN 'Bars & Pubs'\r\n",
+        "        WHEN 'Discotecas' THEN 'Nightclubs'\r\n",
+        "        WHEN 'Gimnasios' THEN 'Gyms'\r\n",
+        "        WHEN 'Peluquerías y barberías' THEN 'Hair Salons & Barbers'\r\n",
+        "        WHEN 'Veterinarias y cuidado de mascotas' THEN 'Veterinary & Pet Care'\r\n",
+        "        WHEN 'Por clasificar' THEN 'Unclassified'\r\n",
+        "        ELSE primary_category_name\r\n",
+        "    END AS primary_category_name,\r\n",
+        "    zone_name,\r\n",
+        "    business_status,\r\n",
+        "    rating,\r\n",
+        "    review_count,\r\n",
+        "        -- Group review counts into selectable ranges without excluding large values.\r\n",
+        "    CASE\r\n",
+        "        WHEN review_count IS NULL THEN '07 - Not reported'\r\n",
+        "        WHEN review_count = 0 THEN '01 - No reviews'\r\n",
+        "        WHEN review_count <= 10 THEN '02 - 1–10'\r\n",
+        "        WHEN review_count <= 50 THEN '03 - 11–50'\r\n",
+        "        WHEN review_count <= 200 THEN '04 - 51–200'\r\n",
+        "        WHEN review_count <= 1000 THEN '05 - 201–1,000'\r\n",
+        "        ELSE '06 - Over 1,000'\r\n",
+        "    END AS review_count_band,\r\n",
+        "    -- Flag businesses with at least one reported review for percentage calculations.\r\n",
+        "    CASE WHEN review_count > 0 THEN 1.0 ELSE 0.0 END AS with_reviews_flag,\r\n",
+        "    -- Flag businesses whose review count was not reported.\r\n",
+        "    CASE WHEN review_count IS NULL THEN 1 ELSE 0 END AS missing_review_count_flag,\r\n",
+        "        -- Translate price-level labels for dashboard display.\r\n",
+        "    CASE price_level_name\r\n",
+        "        WHEN 'Gratuito' THEN 'Free'\r\n",
+        "        WHEN 'Económico' THEN 'Inexpensive'\r\n",
+        "        WHEN 'Moderado' THEN 'Moderate'\r\n",
+        "        WHEN 'Costoso' THEN 'Expensive'\r\n",
+        "        WHEN 'Muy costoso' THEN 'Very Expensive'\r\n",
+        "        WHEN 'Sin especificar' THEN 'Unspecified'\r\n",
+        "        WHEN 'No reportado' THEN 'Not Reported'\r\n",
+        "        ELSE price_level_name\r\n",
+        "    END AS price_level_name,\r\n",
+        "    price_order,\r\n",
+        "    -- Convert reported website availability into a numeric indicator.\r\n",
+        "    CASE WHEN has_website THEN 1.0 ELSE 0.0 END AS website_reported_flag,\r\n",
+        "    -- Convert reported phone and opening-hours availability into numeric indicators.\r\n",
+        "    CASE WHEN has_phone THEN 1.0 ELSE 0.0 END AS phone_reported_flag,\r\n",
+        "    CASE WHEN has_opening_hours THEN 1.0 ELSE 0.0 END AS hours_reported_flag,\r\n",
+        "    has_website,\r\n",
+        "    has_phone,\r\n",
+        "    has_opening_hours,\r\n",
+        "    website_uri,\r\n",
+        "    national_phone_number,\r\n",
+        "    google_maps_uri,\r\n",
+        "    write_review_uri\r\n",
+        "FROM places_ratings.gold.v_business_explorer;"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "c393798d",
+      "displayName": "Overview",
+      "layout": [
+        {
+          "widget": {
+            "name": "businesses-identified",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "f0b23e9e",
+                  "fields": [
+                    {
+                      "name": "countdistinct(business_key)",
+                      "expression": "COUNT(DISTINCT `business_key`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "showDescription": false,
+                "title": {
+                  "value": "<span style=\"text-align:center;display:block;\">`Businesses Identified`</span>",
+                  "fields": []
+                }
+              },
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "countdistinct(business_key)"
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 4,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "businesses-by-category",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "f0b23e9e",
+                  "fields": [
+                    {
+                      "name": "countdistinct(business_key)",
+                      "expression": "COUNT(DISTINCT `business_key`)"
+                    },
+                    {
+                      "name": "primary_category_name",
+                      "expression": "`primary_category_name`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "headerAlignment": "center",
+                "title": {
+                  "value": "`Businesses by Category`",
+                  "fields": []
+                }
+              },
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "countdistinct(business_key)",
+                  "displayName": "# of businesses",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "primary_category_name",
+                  "displayName": "business categories",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "x-reversed"
+                    }
+                  }
+                },
+                "label": {
+                  "show": false
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 4,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "study-area",
+            "queries": [
+              {
+                "name": "dashboards/01f1dcadb27213b2b20079e9b569e3f3/datasets/01f1dcadd85d106281733a01c6ab99dc_zone_name",
+                "query": {
+                  "datasetName": "f0b23e9e",
+                  "fields": [
+                    {
+                      "name": "zone_name",
+                      "expression": "`zone_name`"
+                    },
+                    {
+                      "name": "zone_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Study Area:",
+                  "fields": []
+                }
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "zone_name",
+                    "queryName": "dashboards/01f1dcadb27213b2b20079e9b569e3f3/datasets/01f1dcadd85d106281733a01c6ab99dc_zone_name"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 8,
+            "y": 0,
+            "width": 4,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "business-category",
+            "queries": [
+              {
+                "name": "dashboards/01f1dcadb27213b2b20079e9b569e3f3/datasets/01f1dcadd85d106281733a01c6ab99dc_primary_category_name",
+                "query": {
+                  "datasetName": "f0b23e9e",
+                  "fields": [
+                    {
+                      "name": "primary_category_name",
+                      "expression": "`primary_category_name`"
+                    },
+                    {
+                      "name": "primary_category_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Business Category:",
+                  "fields": []
+                }
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "primary_category_name",
+                    "queryName": "dashboards/01f1dcadb27213b2b20079e9b569e3f3/datasets/01f1dcadd85d106281733a01c6ab99dc_primary_category_name"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 8,
+            "y": 1,
+            "width": 4,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "businesses-with-reviews",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "f0b23e9e",
+                  "fields": [
+                    {
+                      "name": "avg(with_reviews_flag)",
+                      "expression": "AVG(`with_reviews_flag`)"
+                    },
+                    {
+                      "name": "primary_category_name",
+                      "expression": "`primary_category_name`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "`Businesses with Reviews (%)`",
+                  "fields": []
+                }
+              },
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "avg(with_reviews_flag)",
+                  "format": {
+                    "type": "number-percent",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 2
+                    }
+                  },
+                  "displayName": "Avg. of reviews",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "primary_category_name",
+                  "displayName": "Business category",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 4,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "4d817d50",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "f0b23e9e",
+                  "fields": [
+                    {
+                      "name": "median(review_count)",
+                      "expression": "MEDIAN(`review_count`)"
+                    },
+                    {
+                      "name": "primary_category_name",
+                      "expression": "`primary_category_name`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "median(review_count)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "primary_category_name",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 10,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "rating-vs-review-count",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "f0b23e9e",
+                  "fields": [
+                    {
+                      "name": "business_name",
+                      "expression": "`business_name`"
+                    },
+                    {
+                      "name": "zone_name",
+                      "expression": "`zone_name`"
+                    },
+                    {
+                      "name": "rating",
+                      "expression": "`rating`"
+                    },
+                    {
+                      "name": "review_count",
+                      "expression": "`review_count`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "`Rating vs. Review Count`",
+                  "fields": []
+                }
+              },
+              "version": 3,
+              "widgetType": "scatter",
+              "encodings": {
+                "x": {
+                  "fieldName": "rating",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "review_count",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "extra": [
+                  {
+                    "fieldName": "business_name"
+                  },
+                  {
+                    "fieldName": "zone_name"
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 10,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "d01e3eb3",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "f0b23e9e",
+                  "fields": [
+                    {
+                      "name": "sum(missing_review_count_flag)",
+                      "expression": "SUM(`missing_review_count_flag`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "showDescription": false,
+                "title": {
+                  "value": "<span style=\"text-align:center;display:block\">`Businesses with Unreported Review Counts`</span>",
+                  "fields": []
+                }
+              },
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(missing_review_count_flag)"
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 0,
+            "width": 4,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "b428b36b",
+            "spec": {
+              "widgetType": "text",
+              "version": 1,
+              "encodings": {
+                "text": {
+                  "lines": [
+                    "**About this dataset**<br>This dashboard explores 1,314 businesses discovered through Google Places searches. Results are a sample, not a census. Study areas are assigned from search nuclei. Missing information does not mean zero or confirmed absence. Findings support exploration, not confirmed demand for an NFC solution."
+                  ],
+                  "fields": []
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 12,
+            "height": 2
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    },
+    {
+      "name": "25b643a3",
+      "displayName": "Business Explorer",
+      "layout": [
+        {
+          "widget": {
+            "name": "business-directory",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "f0b23e9e",
+                  "fields": [
+                    {
+                      "name": "business_name",
+                      "expression": "`business_name`"
+                    },
+                    {
+                      "name": "primary_category_name",
+                      "expression": "`primary_category_name`"
+                    },
+                    {
+                      "name": "zone_name",
+                      "expression": "`zone_name`"
+                    },
+                    {
+                      "name": "rating",
+                      "expression": "`rating`"
+                    },
+                    {
+                      "name": "review_count",
+                      "expression": "`review_count`"
+                    },
+                    {
+                      "name": "business_status",
+                      "expression": "`business_status`"
+                    },
+                    {
+                      "name": "national_phone_number",
+                      "expression": "`national_phone_number`"
+                    },
+                    {
+                      "name": "website_uri",
+                      "expression": "`website_uri`"
+                    }
+                  ],
+                  "disaggregated": true,
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "`review_count`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "`Business Directory`",
+                  "fields": []
+                }
+              },
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "business_name",
+                    "displayName": "Business name"
+                  },
+                  {
+                    "fieldName": "primary_category_name",
+                    "displayName": "Category"
+                  },
+                  {
+                    "fieldName": "zone_name",
+                    "displayName": "Zone"
+                  },
+                  {
+                    "fieldName": "rating",
+                    "displayName": "Rating"
+                  },
+                  {
+                    "fieldName": "review_count",
+                    "displayName": "Review count"
+                  },
+                  {
+                    "fieldName": "business_status",
+                    "displayName": "Business status"
+                  },
+                  {
+                    "fieldName": "national_phone_number",
+                    "displayName": "Phone"
+                  },
+                  {
+                    "fieldName": "website_uri",
+                    "displayName": "Website"
+                  }
+                ],
+                "rowOrder": [
+                  {
+                    "by": "column-reversed",
+                    "field": {
+                      "index": 4
+                    }
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 11,
+            "height": 10
+          }
+        },
+        {
+          "widget": {
+            "name": "category",
+            "queries": [
+              {
+                "name": "dashboards/01f1dcadb27213b2b20079e9b569e3f3/datasets/01f1dcadd85d106281733a01c6ab99dc_primary_category_name",
+                "query": {
+                  "datasetName": "f0b23e9e",
+                  "fields": [
+                    {
+                      "name": "primary_category_name",
+                      "expression": "`primary_category_name`"
+                    },
+                    {
+                      "name": "primary_category_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Category:",
+                  "fields": []
+                }
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "primary_category_name",
+                    "queryName": "dashboards/01f1dcadb27213b2b20079e9b569e3f3/datasets/01f1dcadd85d106281733a01c6ab99dc_primary_category_name"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 4,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "d23cd37f",
+            "queries": [
+              {
+                "name": "dashboards/01f1dcadb27213b2b20079e9b569e3f3/datasets/01f1dcadd85d106281733a01c6ab99dc_zone_name",
+                "query": {
+                  "datasetName": "f0b23e9e",
+                  "fields": [
+                    {
+                      "name": "zone_name",
+                      "expression": "`zone_name`"
+                    },
+                    {
+                      "name": "zone_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Study Area:",
+                  "fields": []
+                }
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "zone_name",
+                    "queryName": "dashboards/01f1dcadb27213b2b20079e9b569e3f3/datasets/01f1dcadd85d106281733a01c6ab99dc_zone_name"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 0,
+            "width": 4,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "80f33727",
+            "queries": [
+              {
+                "name": "dashboards/01f1dcadb27213b2b20079e9b569e3f3/datasets/01f1dcadd85d106281733a01c6ab99dc_rating",
+                "query": {
+                  "datasetName": "f0b23e9e",
+                  "fields": [
+                    {
+                      "name": "min(rating)",
+                      "expression": "MIN(`rating`)"
+                    },
+                    {
+                      "name": "max(rating)",
+                      "expression": "MAX(`rating`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Rating:",
+                  "fields": []
+                }
+              },
+              "widgetType": "range-slider",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "rating",
+                    "queryName": "dashboards/01f1dcadb27213b2b20079e9b569e3f3/datasets/01f1dcadd85d106281733a01c6ab99dc_rating"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 1,
+            "width": 4,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "da3e9385",
+            "queries": [
+              {
+                "name": "dashboards/01f1dcadb27213b2b20079e9b569e3f3/datasets/01f1dcadd85d106281733a01c6ab99dc_review_count_band",
+                "query": {
+                  "datasetName": "f0b23e9e",
+                  "fields": [
+                    {
+                      "name": "review_count_band",
+                      "expression": "`review_count_band`"
+                    },
+                    {
+                      "name": "review_count_band_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Review count:",
+                  "fields": []
+                }
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "review_count_band",
+                    "queryName": "dashboards/01f1dcadb27213b2b20079e9b569e3f3/datasets/01f1dcadd85d106281733a01c6ab99dc_review_count_band"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 1,
+            "width": 4,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "business-name",
+            "queries": [
+              {
+                "name": "dashboards/01f1dcadb27213b2b20079e9b569e3f3/datasets/01f1dcadd85d106281733a01c6ab99dc_business_name",
+                "query": {
+                  "datasetName": "f0b23e9e",
+                  "fields": [
+                    {
+                      "name": "business_name",
+                      "expression": "`business_name`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Business Name",
+                  "fields": []
+                }
+              },
+              "widgetType": "filter-text-entry",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "business_name",
+                    "queryName": "dashboards/01f1dcadb27213b2b20079e9b569e3f3/datasets/01f1dcadd85d106281733a01c6ab99dc_business_name"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 8,
+            "y": 1,
+            "width": 4,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "website-reported",
+            "queries": [
+              {
+                "name": "dashboards/01f1dcadb27213b2b20079e9b569e3f3/datasets/01f1dcadd85d106281733a01c6ab99dc_has_website",
+                "query": {
+                  "datasetName": "f0b23e9e",
+                  "fields": [
+                    {
+                      "name": "has_website",
+                      "expression": "`has_website`"
+                    },
+                    {
+                      "name": "has_website_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Website reported",
+                  "fields": []
+                }
+              },
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "has_website",
+                    "queryName": "dashboards/01f1dcadb27213b2b20079e9b569e3f3/datasets/01f1dcadd85d106281733a01c6ab99dc_has_website"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 8,
+            "y": 0,
+            "width": 4,
+            "height": 1
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    },
+    {
+      "name": "edebd49a",
+      "displayName": "Reputation & Digital Presence",
+      "layout": [
+        {
+          "widget": {
+            "name": "businesses-reported-website",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "f0b23e9e",
+                  "fields": [
+                    {
+                      "name": "avg(website_reported_flag)",
+                      "expression": "AVG(`website_reported_flag`)"
+                    },
+                    {
+                      "name": "primary_category_name",
+                      "expression": "`primary_category_name`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "`Businesses with a Reported Website (%)`",
+                  "fields": []
+                }
+              },
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "avg(website_reported_flag)",
+                  "format": {
+                    "type": "number-percent",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 2
+                    }
+                  },
+                  "displayName": "Avg website presence",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "primary_category_name",
+                  "displayName": "Category",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "32b300cc",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "f0b23e9e",
+                  "fields": [
+                    {
+                      "name": "avg(phone_reported_flag)",
+                      "expression": "AVG(`phone_reported_flag`)"
+                    },
+                    {
+                      "name": "primary_category_name",
+                      "expression": "`primary_category_name`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "`Businesses with a Reported Phone (%)`",
+                  "fields": []
+                }
+              },
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "avg(phone_reported_flag)",
+                  "format": {
+                    "type": "number-percent",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 2
+                    }
+                  },
+                  "displayName": "& ",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "primary_category_name",
+                  "displayName": "Category",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 0,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "14c61216",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "f0b23e9e",
+                  "fields": [
+                    {
+                      "name": "avg(hours_reported_flag)",
+                      "expression": "AVG(`hours_reported_flag`)"
+                    },
+                    {
+                      "name": "primary_category_name",
+                      "expression": "`primary_category_name`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "`Businesses with Reported Opening Hours (%)`",
+                  "fields": []
+                }
+              },
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "avg(hours_reported_flag)",
+                  "format": {
+                    "type": "number-percent",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 2
+                    }
+                  },
+                  "displayName": "% of hours",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "primary_category_name",
+                  "displayName": "Category",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 6,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "average-business-rating-by-price-level",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "f0b23e9e",
+                  "fields": [
+                    {
+                      "name": "avg(rating)",
+                      "expression": "AVG(`rating`)"
+                    },
+                    {
+                      "name": "price_level_name",
+                      "expression": "`price_level_name`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "- Average Business Rating by Price Level",
+                  "fields": []
+                }
+              },
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "avg(rating)",
+                  "displayName": "Rating",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "price_level_name",
+                  "displayName": "Price Range",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 6,
+            "width": 6,
+            "height": 6
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "widgetHeaderAlignment": "ALIGNMENT_UNSPECIFIED"
+    },
+    "applyModeEnabled": false
+  }
+}
