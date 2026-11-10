@@ -392,3 +392,8 @@
 # MAGIC This notebook was structurally reviewed locally. Actual SQL execution and table
 # MAGIC counts must be verified in Databricks. No remote data or tables were changed here.
 # MAGIC After validation, the unused business_observations table may be removed separately.
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC select * from places_ratings.silver.business_snapshots
