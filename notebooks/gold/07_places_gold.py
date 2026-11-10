@@ -635,17 +635,17 @@
 # MAGIC
 # MAGIC ### Hypothesis: presence, volume and observed prospect pool
 # MAGIC No single statistic determines the hypothesis. Compare these complementary indicators:
-# MAGIC - Presence: businesses with a positive reported review count / all sampled businesses in the category.
-# MAGIC   This is observed positive coverage; missing values do not establish the absence of reviews.
-# MAGIC - Data availability: reported counts / all businesses. Reported zero, positive and missing counts
-# MAGIC   are kept separate. A second positive percentage uses only businesses with a reported count;
+# MAGIC - Presence: businesses with at least one reported review / all sampled businesses in the category.
+# MAGIC   This is observed coverage of businesses with reviews; missing values do not establish the absence of reviews.
+# MAGIC - Data availability: reported counts / all businesses. Reported zero counts, counts of at least one, and missing counts
+# MAGIC   are kept separate. A second percentage of businesses with reviews uses only businesses with a reported count;
 # MAGIC   read its denominator carefully, especially when no explicit zero was returned.
 # MAGIC - Volume: median and mean counts among businesses with a reported count, including explicit zero.
-# MAGIC - Observed pool: number of businesses with positive counts, their share of all positive businesses
+# MAGIC - Observed pool: number of businesses with reviews, their share of all businesses with reviews
 # MAGIC   in the run, and counts reaching illustrative thresholds of 10 and 50 reviews.
 # MAGIC   These thresholds are exploratory filters, not validated NFC purchase criteria.
 # MAGIC
-# MAGIC Category-positive coverage and share of the positive pool answer different questions:
+# MAGIC Within-category review coverage and share of the reviewed-business pool answer different questions:
 # MAGIC the first compares rates within each category; the second describes the composition of this sample.
 # MAGIC They do not measure population market share. Discovery limits and non-random sampling still apply.
 # MAGIC Display `Por clasificar` separately. Do not sum across different runs.
@@ -768,7 +768,7 @@
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC -- Compare positive-review coverage, volume and observed pool size for the hypothesis.
+# MAGIC -- Compare coverage of businesses with reviews, volume and observed pool size for the hypothesis.
 # MAGIC SELECT primary_category_name, businesses,
 # MAGIC   businesses_with_reviews, businesses_with_zero_reviews,
 # MAGIC   businesses_missing_review_count, pct_with_reviews,

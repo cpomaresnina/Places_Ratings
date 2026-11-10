@@ -30,7 +30,7 @@
 # MAGIC %md
 # MAGIC ## 0. Reuse Silver preparation
 # MAGIC Temporary views from another notebook are not guaranteed to exist in this session.
-# MAGIC The next standalone %run cell executes ../silver/04_places_silver inline to create
+# MAGIC The next standalone %run cell executes ../04_places_silver inline to create
 # MAGIC the same structured views here. It does not extract data or write tables.
 # MAGIC Both notebooks must be imported at the paths shown, without _clean in their names.
 # MAGIC If you renamed Silver, adjust this relative notebook path before executing.

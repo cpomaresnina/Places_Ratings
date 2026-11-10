@@ -47,11 +47,17 @@ Los tipos ambiguos, por ejemplo `store`, `beauty_salon`, `medical_clinic` y valo
 quedan en **Por clasificar**. El puente conserva las categorías de búsqueda sin reinterpretarlas.
 Una categoría principal no necesariamente coincide con alguna categoría detectada.
 
-La zona se asigna cuando la dirección menciona Sopocachi, Calacoto o Ciudad Satélite.
-Los demás casos quedan en **Sin determinar**. No se infiere pertenencia desde los núcleos de búsqueda.
-San Miguel y Montenegro no se convierten automáticamente en Calacoto solo por haber buscado allí.
-Esta regla conservadora puede dejar muchas direcciones sin asignar; las correcciones geográficas
-posteriores requieren un mapeo validado, no una equivalencia entre búsqueda y ubicación.
+La zona se atribuye a los núcleos donde se detectó el negocio: Sopocachi → Sopocachi;
+El Bosque, San Miguel y Montenegro → Calacoto; Tinku → Ciudad Satélite.
+Si hay detecciones desde varias zonas, se elige el núcleo detectado más cercano a las coordenadas
+del negocio, usando distancia de gran círculo y código de núcleo como desempate estable.
+Es una asignación de zona de estudio por origen de búsqueda, no pertenencia administrativa verificada.
+La falta de coordenadas o un núcleo desconocido detienen la carga para revisión: no se asigna
+silenciosamente una zona incorrecta ni se usa “Sin determinar”. Un miembro antiguo sin determinar
+puede permanecer en la dimensión si ya estaba creado, pero la nueva regla no lo usa.
+
+El calendario comprende del 1 de enero de 2026 al 31 de diciembre de 2031 y su carga es solo
+de inserción (SCD0), conforme a la decisión de mantener inmutables las fechas existentes.
 
 ## Historia e idempotencia
 
@@ -60,13 +66,18 @@ La tabla de hechos conserva puntuación, conteo, estado, precio, web, teléfono 
 Una extracción futura crea nuevas filas de hechos. Repetir la misma carga no agrega filas.
 El hash de contenido bloquea cambios silenciosos sobre hechos ya cargados.
 Cambiar las reglas de clasificación exige revisar y reconstruir Gold de forma deliberada;
-el notebook no borra automáticamente datos.
+el notebook no borra automáticamente datos. Se incluye una migración explícita y acotada de
+`address_zone_v1` a `detected_nucleus_zone_v1`: actualiza zona, versión y hash solo si la fuente
+Silver y la versión de clasificación no cambiaron. No sustituye otras métricas históricas.
 
 ## Vistas para análisis
 
 - `v_business_explorer`: una fila por negocio/extracción, con dimensiones y métricas.
 - `v_business_category_memberships`: una fila por categoría detectada; puede repetir negocios.
-- `v_category_metrics`: conteos, medianas, medias y cobertura por categoría principal y extracción.
+- `v_category_metrics`: presencia de al menos una valoración reportada, ceros explícitos y datos ausentes;
+  medianas, medias y cobertura por categoría principal y extracción. También incluye cantidades
+  con al menos 10 y 50 valoraciones (umbrales exploratorios) y participación de cada categoría
+  en el total de negocios con al menos una valoración reportada de esa extracción.
 - `v_price_reputation`: reputación por categoría principal y rango de precio, incluidos valores desconocidos.
 
 Las vistas permanentes leen exclusivamente Gold. Los conteos por categoría principal se pueden sumar
@@ -74,6 +85,14 @@ por extracción; los de categorías detectadas se superponen. La media de puntua
 entre negocios, no una reconstrucción de la puntuación de todas las reseñas individuales.
 El precio es ordinal y no representa montos. NULL no equivale a cero. No se suman los conteos
 acumulados de valoraciones de un negocio entre fechas.
+
+Para evaluar la hipótesis usamos tres perspectivas complementarias: presencia (porcentaje de
+negocios con al menos una valoración reportada sobre todos los de su categoría), volumen (mediana y distribución
+de los conteos reportados) y tamaño del conjunto observado (cantidad de negocios con al menos una valoración
+reportada o que cumplen umbrales explícitos). El porcentaje con al menos una valoración entre quienes reportan conteo
+usa otro denominador: puede ser 100 % si no hay ceros explícitos, aunque haya muchos datos ausentes.
+La participación en el total de negocios con al menos una valoración reportada describe nuestra muestra; no es cuota de mercado
+ni evidencia de intención de compra de NFC. Los valores ausentes no prueban ausencia de valoraciones.
 
 ## Validación
 

@@ -9,10 +9,11 @@
 # MAGIC Five commercial nuclei × seven categories × nine points = 315 planned requests.
 # MAGIC Output: landing/source_files/baselines/baseline_001/observed/...
 # MAGIC Previous discovery files, enrichment files and Delta tables remain unchanged.
-# MAGIC Default Run all only inspects the plan. Pilot cap: one call.
+# MAGIC Default Run all only inspects the plan. Current config permits up to 315 live calls.
+# MAGIC For a new pilot, explicitly set max_calls_per_run to 1 before enabling collection.
 # MAGIC A fixed run_id supports resume across dates; timestamps reflect actual collection.
 # MAGIC After validation, Bronze must load only this selected baseline, not all runs.
-# MAGIC The earlier Silver temporary views and Bronze table still refer to the trial data.
+# MAGIC Bronze and Silver currently load baseline_001; do not repeat the earlier trial collectors.
 
 # COMMAND ----------
 
