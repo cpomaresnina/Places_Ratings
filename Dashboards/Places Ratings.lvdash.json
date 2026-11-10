@@ -96,7 +96,7 @@
                 "showTitle": true,
                 "showDescription": false,
                 "title": {
-                  "value": "<span style=\"text-align:center;display:block;\">`Businesses Identified`</span>",
+                  "value": "Businesses Identified",
                   "fields": []
                 }
               },
@@ -146,7 +146,7 @@
                 "showTitle": true,
                 "headerAlignment": "center",
                 "title": {
-                  "value": "`Businesses by Category`",
+                  "value": "Businesses by Category",
                   "fields": []
                 }
               },
@@ -310,7 +310,7 @@
               "frame": {
                 "showTitle": true,
                 "title": {
-                  "value": "`Businesses with Reviews (%)`",
+                  "value": "Businesses with Reviews (%)",
                   "fields": []
                 }
               },
@@ -326,7 +326,7 @@
                       "places": 2
                     }
                   },
-                  "displayName": "Avg. of reviews",
+                  "displayName": "Businesses with Reviews (%)",
                   "scale": {
                     "type": "quantitative"
                   }
@@ -392,6 +392,13 @@
               },
               "data": {
                 "queryName": "main_query"
+              },
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Median Reviews per Business",
+                  "fields": []
+                }
               }
             }
           },
@@ -436,7 +443,7 @@
               "frame": {
                 "showTitle": true,
                 "title": {
-                  "value": "`Rating vs. Review Count`",
+                  "value": "Rating vs. Review Count",
                   "fields": []
                 }
               },
@@ -499,7 +506,7 @@
                 "showTitle": true,
                 "showDescription": false,
                 "title": {
-                  "value": "<span style=\"text-align:center;display:block\">`Businesses with Unreported Review Counts`</span>",
+                  "value": "Businesses with Unreported Review Counts",
                   "fields": []
                 }
               },
@@ -609,7 +616,7 @@
               "frame": {
                 "showTitle": true,
                 "title": {
-                  "value": "`Business Directory`",
+                  "value": "Business Directory",
                   "fields": []
                 }
               },
@@ -666,8 +673,8 @@
           },
           "position": {
             "x": 0,
-            "y": 2,
-            "width": 11,
+            "y": 3,
+            "width": 12,
             "height": 10
           }
         },
@@ -960,6 +967,55 @@
             "width": 4,
             "height": 1
           }
+        },
+        {
+          "widget": {
+            "name": "business-status",
+            "queries": [
+              {
+                "name": "dashboards/01f1dcadb27213b2b20079e9b569e3f3/datasets/01f1dcadd85d106281733a01c6ab99dc_business_status",
+                "query": {
+                  "datasetName": "f0b23e9e",
+                  "fields": [
+                    {
+                      "name": "business_status",
+                      "expression": "`business_status`"
+                    },
+                    {
+                      "name": "business_status_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Business Status",
+                  "fields": []
+                }
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "business_status",
+                    "queryName": "dashboards/01f1dcadb27213b2b20079e9b569e3f3/datasets/01f1dcadd85d106281733a01c6ab99dc_business_status"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 4,
+            "height": 1
+          }
         }
       ],
       "pageType": "PAGE_TYPE_CANVAS",
@@ -995,7 +1051,7 @@
               "frame": {
                 "showTitle": true,
                 "title": {
-                  "value": "`Businesses with a Reported Website (%)`",
+                  "value": "Businesses with a Reported Website (%)",
                   "fields": []
                 }
               },
@@ -1011,7 +1067,7 @@
                       "places": 2
                     }
                   },
-                  "displayName": "Avg website presence",
+                  "displayName": "Businesses with a Reported Website (%)",
                   "scale": {
                     "type": "quantitative"
                   }
@@ -1031,7 +1087,7 @@
           },
           "position": {
             "x": 0,
-            "y": 0,
+            "y": 1,
             "width": 6,
             "height": 6
           }
@@ -1062,7 +1118,7 @@
               "frame": {
                 "showTitle": true,
                 "title": {
-                  "value": "`Businesses with a Reported Phone (%)`",
+                  "value": "Businesses with a Reported Phone (%)",
                   "fields": []
                 }
               },
@@ -1078,7 +1134,7 @@
                       "places": 2
                     }
                   },
-                  "displayName": "& ",
+                  "displayName": "Businesses with a Reported Phone (%)",
                   "scale": {
                     "type": "quantitative"
                   }
@@ -1098,7 +1154,7 @@
           },
           "position": {
             "x": 6,
-            "y": 0,
+            "y": 1,
             "width": 6,
             "height": 6
           }
@@ -1129,7 +1185,7 @@
               "frame": {
                 "showTitle": true,
                 "title": {
-                  "value": "`Businesses with Reported Opening Hours (%)`",
+                  "value": "Businesses with Reported Opening Hours (%)",
                   "fields": []
                 }
               },
@@ -1145,7 +1201,7 @@
                       "places": 2
                     }
                   },
-                  "displayName": "% of hours",
+                  "displayName": "Businesses with Reported Opening Hours (%)",
                   "scale": {
                     "type": "quantitative"
                   }
@@ -1165,7 +1221,7 @@
           },
           "position": {
             "x": 0,
-            "y": 6,
+            "y": 7,
             "width": 6,
             "height": 6
           }
@@ -1196,7 +1252,7 @@
               "frame": {
                 "showTitle": true,
                 "title": {
-                  "value": "- Average Business Rating by Price Level",
+                  "value": "Average Business Rating by Price Level",
                   "fields": []
                 }
               },
@@ -1225,9 +1281,130 @@
           },
           "position": {
             "x": 6,
-            "y": 6,
+            "y": 7,
             "width": 6,
             "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "presence-study-area",
+            "queries": [
+              {
+                "name": "dashboards/01f1dcadb27213b2b20079e9b569e3f3/datasets/01f1dcadd85d106281733a01c6ab99dc_zone_name",
+                "query": {
+                  "datasetName": "f0b23e9e",
+                  "fields": [
+                    {
+                      "name": "zone_name",
+                      "expression": "`zone_name`"
+                    },
+                    {
+                      "name": "zone_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Study Area:",
+                  "fields": []
+                }
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "zone_name",
+                    "queryName": "dashboards/01f1dcadb27213b2b20079e9b569e3f3/datasets/01f1dcadd85d106281733a01c6ab99dc_zone_name"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 4,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "presence-business-category",
+            "queries": [
+              {
+                "name": "dashboards/01f1dcadb27213b2b20079e9b569e3f3/datasets/01f1dcadd85d106281733a01c6ab99dc_primary_category_name",
+                "query": {
+                  "datasetName": "f0b23e9e",
+                  "fields": [
+                    {
+                      "name": "primary_category_name",
+                      "expression": "`primary_category_name`"
+                    },
+                    {
+                      "name": "primary_category_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Business Category:",
+                  "fields": []
+                }
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "primary_category_name",
+                    "queryName": "dashboards/01f1dcadb27213b2b20079e9b569e3f3/datasets/01f1dcadd85d106281733a01c6ab99dc_primary_category_name"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 0,
+            "width": 4,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "price-interpretation-note",
+            "spec": {
+              "widgetType": "text",
+              "version": 1,
+              "encodings": {
+                "text": {
+                  "lines": [
+                    "**Interpretation**<br>For price comparisons, select one business category. Price levels are reported for only part of the sample; inspect subgroup sizes before drawing conclusions. Ratings are averaged across businesses with reported ratings. Missing website, phone or hours mean not reported, not verified absence."
+                  ],
+                  "fields": []
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 13,
+            "width": 12,
+            "height": 2
           }
         }
       ],

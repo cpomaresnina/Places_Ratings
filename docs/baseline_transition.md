@@ -1,4 +1,6 @@
-# Transition from exploration to the full-context baseline
+# Historical note: transition from exploration to the full-context baseline
+
+> Archived development decision. The transition is complete. Follow [runbook.md](runbook.md) for current execution; do not repeat the one-time replacement described below.
 
 ## Scope
 

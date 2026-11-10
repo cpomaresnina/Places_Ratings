@@ -1,0 +1,13 @@
+# Ignore local Python artifacts, credentials and unversioned data exports.
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+data/
+backups/
+*.log

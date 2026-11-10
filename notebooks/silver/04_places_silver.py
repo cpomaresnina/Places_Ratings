@@ -10,7 +10,7 @@
 # MAGIC views, including places_silver_observations. It retains source lineage and required
 # MAGIC technical validation. It makes no API calls and writes no persistent Silver tables.
 # MAGIC
-# MAGIC EDA diagnostics are in ../eda/05_places_eda. No geographic exclusion is applied:
+# MAGIC EDA diagnostics are in ./EDA/05_places_eda. No geographic exclusion is applied:
 # MAGIC coordinates and search nuclei remain context, not eligibility filters.
 # MAGIC Optional nulls, explicit false and zero are preserved. Business deduplication and
 # MAGIC analytical category rules remain decisions to be informed by EDA.
