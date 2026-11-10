@@ -2,6 +2,8 @@
 
 El primer artículo aborda solo la granularidad. No publica todo el proyecto de una vez ni presenta etapas pendientes como terminadas.
 
+Versiones del artículo: [English](01_article_en.md) y [Español](01_article.md).
+
 | Entrega | Tema | Evidencia del proyecto |
 |---|---|---|
 | 1 | Apariciones frente a negocios: definir el grano antes del dashboard | 315 respuestas → 3.272 apariciones → 1.314 establecimientos |
