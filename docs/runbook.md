@@ -12,7 +12,7 @@ Required objects:
 - For new collection only: a Google Cloud project with Places API enabled, its billing configuration, and an API key stored in the configured Databricks secret scope/key. Secret names in configuration are references, not credential values.
 - For S3 setup: a storage credential and external location authorized for your own bucket/prefix. Adapt `00_storage_setup.ipynb` to your environment; this repository cannot grant access to the author's bootcamp bucket.
 
-Bronze, Silver and Gold schemas/tables are created by their notebooks when absent. The storage setup notebook does not provision Google Cloud or AWS IAM.
+Bronze, Silver and Gold schemas/tables are created by layer-specific DDL notebooks invoked from their ETL notebooks. Gold ETL also creates the semantic schema and refreshes its views after the tables reconcile. The storage setup notebook does not provision Google Cloud or AWS IAM.
 
 ## Choose one execution path
 
@@ -26,15 +26,15 @@ The repository intentionally does not include the author's landing JSON. Importi
 
 ## Current baseline order
 
-1. **Setup, if necessary:** `notebooks/setup/00_storage_setup.ipynb`. Review resource names before execution.
-2. **Collection, only if necessary:** `notebooks/ingestion/02c_places_baseline.py`. It finds `config/places_baseline.json` from the Git folder and imports `src/ingestion`. Run initially with `RUN_LIVE_EXTRACTION = False`.
+1. **Setup, if necessary:** `src/DDL/landing/00_storage_setup.ipynb`. Review resource names before execution.
+2. **Collection, only if necessary:** `src/ETL/landing/02c_places_baseline.py`. It finds `config/places_baseline.json` from the Git folder and imports `src/ETL/landing/ingestion`. Run initially with `RUN_LIVE_EXTRACTION = False`.
 3. Inspect planned/completed/pending queries, invalid files and duplicate query responses. The committed configuration currently permits **315 calls per enabled execution**, not one. For a new pilot, set `max_calls_per_run` to 1 first.
 4. Enable live collection deliberately only when intending to issue API requests. Each successful response is saved under `baselines/<run_id>/observed/...` with a run manifest. Restore the source flag to False before committing.
-5. Run `notebooks/bronze/03_places_bronze_clean.py`. Its current path, run ID, versions and assertions are explicitly scoped to `baseline_001` and 315 responses.
-6. For exploratory review, run `notebooks/silver/EDA/05_places_eda.py`. Its standalone `%run "../04_places_silver"` builds temporary views in the same session.
-7. Run `notebooks/silver/06_places_silver_load.py`. Its `%run "./04_places_silver"` prepares observations before loading `places_ratings.silver.business_snapshots`.
-8. Run `notebooks/gold/07_places_gold.py`. It reads persisted Silver directly, creates six dimensions, loads facts and the bridge, and publishes four analytical views.
-9. Import `Dashboards/Places Ratings.lvdash.json`, select an available SQL warehouse and execute the dataset. Review pages/filters before publishing.
+5. Run `src/ETL/bronze/03_places_bronze_clean.py`. It invokes `src/DDL/bronze/03_places_bronze_ddl.py`; the current path, run ID, versions and assertions are explicitly scoped to `baseline_001` and 315 responses.
+6. For exploratory review, run `src/ETL/silver/05_places_eda.py`. Its `%run "./04_places_silver"` builds temporary views in the same session.
+7. Run `src/ETL/silver/06_places_silver_load.py`. Its `%run "./04_places_silver"` prepares observations and it invokes `src/DDL/silver/06_places_silver_ddl.py` before loading `places_ratings.silver.business_snapshots`.
+8. Run `src/ETL/gold/07_places_gold.py`. It reads persisted Silver, prepares source views, invokes `src/DDL/gold/07_places_gold_ddl.py`, loads dimensions/facts/bridge, then invokes semantic DDL and `src/views/08_places_semantic_views.py`.
+9. Import `Dashboards/Places Ratings.lvdash.json`, select an available SQL warehouse and execute the dataset from `places_ratings.semantic.v_business_explorer`. Review pages/filters before publishing.
 
 Do not execute the earlier discovery collector and Details enrichment as extra mandatory steps. Full-context Nearby responses are the current baseline source.
 

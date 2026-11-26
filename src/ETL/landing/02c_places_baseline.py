@@ -26,12 +26,12 @@ from pathlib import Path
 working_directory = Path.cwd().resolve()
 REPO_ROOT = next((p for p in [working_directory, *working_directory.parents]
                   if (p / 'config/places_baseline.json').is_file()
-                  and (p / 'src/ingestion').is_dir()), None)
+                  and (p / 'src/ETL/landing/ingestion').is_dir()), None)
 if REPO_ROOT is None:
     raise RuntimeError('Baseline configuration not found in the current Git folder.')
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-from src.ingestion import search_plan, storage, baseline
+from src.ETL.landing.ingestion import search_plan, storage, baseline
 importlib.reload(search_plan)
 importlib.reload(storage)
 importlib.reload(baseline)

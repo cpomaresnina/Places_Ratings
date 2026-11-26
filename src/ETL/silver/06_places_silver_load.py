@@ -24,9 +24,11 @@
 # MAGIC
 # MAGIC ## Execution
 # MAGIC Run from top to bottom. The first cell reuses the preparation notebook.
-# MAGIC The DDL and insert-only MERGE are kept here. A rerun of the same immutable baseline
+# MAGIC The DDL lives in `src/DDL/silver/06_places_silver_ddl.py`; insert-only MERGE remains here. A rerun of the same immutable baseline
 # MAGIC must insert zero rows. No Google calls, raw-file deletion, table replacement or
 # MAGIC business_observations loading is included. NULL from assert_true means success.
+
+
 
 # COMMAND ----------
 
@@ -35,9 +37,13 @@
 # MAGIC The next standalone cell executes the existing preparation notebook in this context.
 # MAGIC It creates temporary views only; it does not load the earlier observations table.
 
+
+
 # COMMAND ----------
 
 # MAGIC %run "./04_places_silver"
+
+
 
 # COMMAND ----------
 
@@ -52,6 +58,8 @@
 # MAGIC     ) = 0, 'Missing source business identity or observation metadata.') AS source_identity_check
 # MAGIC FROM places_silver_observations;
 
+
+
 # COMMAND ----------
 
 # MAGIC %md
@@ -59,6 +67,8 @@
 # MAGIC This is a whole-row selection, not a maximum review count and not a field-by-field
 # MAGIC combination. The EDA found no conflicting reported values in the reviewed fields
 # MAGIC and no mixed missingness for review counts, website, hours, phone or price.
+
+
 
 # COMMAND ----------
 
@@ -77,6 +87,8 @@
 # MAGIC ) AS ranked
 # MAGIC WHERE business_row_number = 1;
 
+
+
 # COMMAND ----------
 
 # MAGIC %md
@@ -85,6 +97,8 @@
 # MAGIC Collecting distinct values into arrays keeps these relationships inside the single
 # MAGIC consolidated table. Counts and time bounds describe the source observations.
 # MAGIC Search cities are search context, not verified business-address cities.
+
+
 
 # COMMAND ----------
 
@@ -103,6 +117,8 @@
 # MAGIC     MAX(extracted_at_utc) AS last_observed_at_utc
 # MAGIC FROM places_silver_observations
 # MAGIC GROUP BY run_id, place_id;
+
+
 
 # COMMAND ----------
 
@@ -154,6 +170,8 @@
 # MAGIC     ON latest.run_id = membership.run_id
 # MAGIC     AND latest.place_id = membership.place_id;
 
+
+
 # COMMAND ----------
 
 # MAGIC %sql
@@ -204,6 +222,8 @@
 # MAGIC     )), 256) AS snapshot_content_hash
 # MAGIC FROM places_silver_business_snapshot_base;
 
+
+
 # COMMAND ----------
 
 # MAGIC %md
@@ -211,6 +231,8 @@
 # MAGIC The target row count must match distinct `(run_id, place_id)` source identities,
 # MAGIC not the appearance count. Membership counts must reconcile to the source appearances.
 # MAGIC For the current baseline: expect 1,314 rows and 3,272 source appearances accounted for.
+
+
 
 # COMMAND ----------
 
@@ -225,6 +247,8 @@
 # MAGIC     COUNT_IF(size(search_nuclei) > 1) AS businesses_with_multiple_nuclei
 # MAGIC FROM places_silver_business_snapshot_source
 # MAGIC GROUP BY run_id;
+
+
 
 # COMMAND ----------
 
@@ -253,6 +277,8 @@
 # MAGIC         'Not all source observations are accounted for.'
 # MAGIC     ) AS observation_coverage_check;
 
+
+
 # COMMAND ----------
 
 # MAGIC %md
@@ -261,21 +287,15 @@
 # MAGIC CREATE TABLE IF NOT EXISTS does not erase data or migrate an incompatible existing schema.
 # MAGIC The previous business_observations table is not read, updated or deleted here.
 
-# COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- Create the consolidated Silver table without replacing existing snapshots.
-# MAGIC CREATE SCHEMA IF NOT EXISTS places_ratings.silver;
-# MAGIC
-# MAGIC CREATE TABLE IF NOT EXISTS places_ratings.silver.business_snapshots
-# MAGIC USING DELTA
-# MAGIC COMMENT 'One consolidated business snapshot per extraction run and Google place ID'
-# MAGIC AS
-# MAGIC SELECT
-# MAGIC     *,
-# MAGIC     current_timestamp() AS silver_ingested_at
-# MAGIC FROM places_silver_business_snapshot_source
-# MAGIC WHERE 1 = 0;
+
+# COMMAND ----------
+# MAGIC %md
+# MAGIC ## 5. Create or confirm the consolidated Silver table
+# MAGIC The DDL is maintained in ../../DDL/silver/06_places_silver_ddl.py and uses the validated source view prepared above.
+
+# COMMAND ----------
+# MAGIC %run "../../DDL/silver/06_places_silver_ddl"
 
 # COMMAND ----------
 
@@ -293,6 +313,8 @@
 # MAGIC     HAVING COUNT(*) > 1
 # MAGIC ) AS duplicates;
 
+
+
 # COMMAND ----------
 
 # MAGIC %sql
@@ -306,6 +328,8 @@
 # MAGIC     ON target.run_id = source.run_id AND target.place_id = source.place_id
 # MAGIC WHERE NOT (target.snapshot_content_hash <=> source.snapshot_content_hash);
 
+
+
 # COMMAND ----------
 
 # MAGIC %md
@@ -313,6 +337,8 @@
 # MAGIC The MERGE inserts only previously unseen business/run identities. It does not
 # MAGIC update a historical run. A new monthly run produces a new row for each business.
 # MAGIC The content check above detects accidental rule changes within an existing run.
+
+
 
 # COMMAND ----------
 
@@ -330,6 +356,8 @@
 # MAGIC WHEN NOT MATCHED THEN
 # MAGIC INSERT *;
 
+
+
 # COMMAND ----------
 
 # MAGIC %sql
@@ -344,6 +372,8 @@
 # MAGIC WHERE target.place_id IS NULL
 # MAGIC    OR NOT (target.snapshot_content_hash <=> source.snapshot_content_hash);
 
+
+
 # COMMAND ----------
 
 # MAGIC %sql
@@ -356,6 +386,8 @@
 # MAGIC FROM places_ratings.silver.business_snapshots
 # MAGIC GROUP BY run_id
 # MAGIC ORDER BY run_id;
+
+
 
 # COMMAND ----------
 
@@ -375,10 +407,14 @@
 # MAGIC ORDER BY business_name, place_id
 # MAGIC LIMIT 20;
 
+
+
 # COMMAND ----------
 
 # MAGIC %sql
 # MAGIC select * from places_ratings.silver.business_snapshots
+
+
 
 # COMMAND ----------
 
@@ -393,7 +429,10 @@
 # MAGIC counts must be verified in Databricks. No remote data or tables were changed here.
 # MAGIC After validation, the unused business_observations table may be removed separately.
 
+
+
 # COMMAND ----------
 
 # MAGIC %sql
 # MAGIC select * from places_ratings.silver.business_snapshots
+

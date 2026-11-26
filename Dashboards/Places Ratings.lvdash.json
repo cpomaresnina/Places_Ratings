@@ -64,7 +64,7 @@
         "    national_phone_number,\r\n",
         "    google_maps_uri,\r\n",
         "    write_review_uri\r\n",
-        "FROM places_ratings.gold.v_business_explorer;"
+        "FROM places_ratings.semantic.v_business_explorer;"
       ]
     }
   ],
