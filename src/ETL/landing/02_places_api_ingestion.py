@@ -7,7 +7,7 @@
 # MAGIC # Google Places API — Ingestion
 # MAGIC This notebook loads project configuration and coordinates reusable ingestion modules.
 # MAGIC Default Run all only reads storage and displays the plan; live requests are disabled.
-# MAGIC Modules belong in `src/ingestion/` as Python files, not Databricks notebooks.
+# MAGIC Modules belong in `src/ETL/landing/ingestion/` as Python files, not Databricks notebooks.
 # MAGIC The Git repository root must contain both `config/places_search.json` and `src/`.
 # MAGIC Same-day equivalent requests are skipped. A new UTC date intentionally creates a new snapshot.
 # MAGIC Requests from a different mapping version are not considered completed for this version.
@@ -26,13 +26,13 @@ from pathlib import Path
 working_directory = Path.cwd().resolve()
 REPO_ROOT = next((path for path in [working_directory, *working_directory.parents]
                   if (path / 'config/places_search.json').is_file()
-                  and (path / 'src/ingestion').is_dir()), None)
+                  and (path / 'src/ETL/landing/ingestion').is_dir()), None)
 if REPO_ROOT is None:
     raise RuntimeError('Repository root not found. Run this notebook inside the connected Git folder.')
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from src.ingestion import search_plan, storage, places_api
+from src.ETL.landing.ingestion import search_plan, storage, places_api
 # Reload dependencies to pick up module edits during interactive development.
 importlib.reload(search_plan)
 importlib.reload(storage)

@@ -34,7 +34,7 @@ Appearances are not independent establishments. A repeated detection is retained
 | `selected_observation_id` | Lineage back to the selected whole observation |
 | `silver_snapshot_hash`, `fact_content_hash` | Content fingerprints for changed-history guards; not substitutes for grain checks |
 
-## Metrics in v_category_metrics
+## Metrics in semantic.v_category_metrics
 
 All metrics group by `run_id` and main analytical category. The denominator is never a sum across multiple extractions.
 

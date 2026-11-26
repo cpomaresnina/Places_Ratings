@@ -26,7 +26,7 @@ To replace an existing draft, use **File actions → Replace**. Review the impor
 - Category and study-area filters support multiple selections. Clear page filters and cross-selections before comparing against baseline totals.
 - Review-count bands replace the numeric count slider so large outliers do not make low ranges difficult to select.
 - `Website Reported = false` means the API did not report a website, not that absence was verified.
-- The price chart pools categories when several categories are selected. Select one category for within-category price comparisons and inspect subgroup sizes with `gold.v_price_reputation`.
+- The price chart pools categories when several categories are selected. Select one category for within-category price comparisons and inspect subgroup sizes with `semantic.v_price_reputation`.
 - The mean rating is equally weighted by establishment, not by number of individual reviews.
 - Reported-information charts use an average of 0/1 flags and percent formatting. Do not multiply by 100 a second time.
 
@@ -51,7 +51,7 @@ With all filters cleared and only baseline_001 present:
 
 ## Before multiple baselines
 
-The current dataset selects all runs from `gold.v_business_explorer`. Add a single-run selector or scope the query before loading another run. Otherwise distinct-business counters and snapshot-based rates can describe different grains, and the directory can repeat establishments.
+The current dataset selects all runs from `semantic.v_business_explorer`. Add a single-run selector or scope the query before loading another run. Otherwise distinct-business counters and snapshot-based rates can describe different grains, and the directory can repeat establishments.
 
 ## Portfolio evidence
 

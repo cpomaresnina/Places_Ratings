@@ -8,14 +8,14 @@
 # MAGIC
 # MAGIC ## Purpose and execution
 # MAGIC Run from top to bottom after loading `places_ratings.silver.business_snapshots`.
-# MAGIC No `%run`, API requests or S3 reads are required. All transformations use Spark SQL.
-# MAGIC This notebook creates managed Delta tables in `places_ratings.gold`.
+# MAGIC This notebook prepares Gold source views, invokes stage-specific DDL, loads dimensions/facts/bridge, then refreshes semantic views. It makes no API calls or S3 reads.
+# MAGIC The invoked DDL notebook creates managed Delta tables in `places_ratings.gold`.
 # MAGIC It reads every run currently persisted in consolidated Silver; it does not create a new extraction.
 # MAGIC
 # MAGIC The fact grain is **one business per extraction**. Six dimensions describe business,
 # MAGIC category, extraction, UTC observation date, price level and assigned zone.
 # MAGIC A bridge retains retrieval-category memberships separately from the analytical category.
-# MAGIC All persistent analytical views read Gold only.
+# MAGIC All persistent semantic views read Gold only.
 # MAGIC
 # MAGIC ## Loading rules
 # MAGIC - Deterministic SHA-256 keys identify businesses and extractions; lookup codes are stable keys
@@ -35,12 +35,12 @@
 # MAGIC Current expected baseline: 1,314 facts. Bridge size equals the number of distinct retrieval
 # MAGIC memberships in Silver; it can exceed the number of facts. Successful assert_true returns NULL.
 
-# COMMAND ----------
 
+
+# COMMAND ----------
 # MAGIC %sql
-# MAGIC -- Set UTC explicitly and create the managed Gold schema.
+# MAGIC -- Keep timestamps and date-derived keys consistent with the UTC extraction metadata.
 # MAGIC SET TIME ZONE 'UTC';
-# MAGIC CREATE SCHEMA IF NOT EXISTS places_ratings.gold;
 
 # COMMAND ----------
 
@@ -48,6 +48,8 @@
 # MAGIC -- Read persisted consolidated businesses, including all available historical runs.
 # MAGIC CREATE OR REPLACE TEMP VIEW gold_source AS
 # MAGIC SELECT * FROM places_ratings.silver.business_snapshots;
+
+
 
 # COMMAND ----------
 
@@ -68,6 +70,8 @@
 # MAGIC     'Unexpected price level; review lookup.') AS price_domain_check
 # MAGIC FROM gold_source;
 
+
+
 # COMMAND ----------
 
 # MAGIC %md
@@ -76,6 +80,8 @@
 # MAGIC `unclassified` is different from an invalid business. Pet care remains broad as agreed.
 # MAGIC Search-category memberships are preserved in the bridge, regardless of the primary classification.
 # MAGIC Price is an ordinal label, not a monetary amount. Unspecified and not reported are distinct.
+
+
 
 # COMMAND ----------
 
@@ -93,6 +99,8 @@
 # MAGIC   ('unclassified', 'Por clasificar', 99)
 # MAGIC AS t(category_key, category_name, display_order);
 
+
+
 # COMMAND ----------
 
 # MAGIC %sql
@@ -103,6 +111,8 @@
 # MAGIC   ('calacoto', 'Calacoto', 'La Paz'),
 # MAGIC   ('ciudad_satelite', 'Ciudad Satélite', 'El Alto')
 # MAGIC AS t(zone_key, zone_name, city_name);
+
+
 
 # COMMAND ----------
 
@@ -119,6 +129,8 @@
 # MAGIC   ('PRICE_LEVEL_VERY_EXPENSIVE', 'PRICE_LEVEL_VERY_EXPENSIVE', 'Muy costoso', 4)
 # MAGIC AS t(price_level_key, source_price_level, price_level_name, price_order);
 
+
+
 # COMMAND ----------
 
 # MAGIC %sql
@@ -131,6 +143,8 @@
 # MAGIC   ('calacoto_montenegro', 'calacoto', -16.542593699449483, -68.0780778610696),
 # MAGIC   ('ciudad_satelite_tinku', 'ciudad_satelite', -16.5233706978321, -68.1507870101477)
 # MAGIC AS t(nucleus_code, zone_key, center_latitude, center_longitude);
+
+
 
 # COMMAND ----------
 
@@ -146,6 +160,8 @@
 # MAGIC   ) AS detected LEFT ANTI JOIN gold_nucleus_source AS n
 # MAGIC     ON detected.nucleus_code = n.nucleus_code) = 0,
 # MAGIC     'Unmapped search nucleus; extend the nucleus lookup.') AS nucleus_mapping_check;
+
+
 
 # COMMAND ----------
 
@@ -164,6 +180,8 @@
 # MAGIC   LATERAL explode(s.search_nuclei) AS detected(nucleus_code)
 # MAGIC   JOIN gold_nucleus_source AS n ON detected.nucleus_code = n.nucleus_code
 # MAGIC ) WHERE rn = 1;
+
+
 
 # COMMAND ----------
 
@@ -193,6 +211,8 @@
 # MAGIC FROM gold_source AS s
 # MAGIC JOIN gold_zone_assignment AS z ON s.run_id = z.run_id AND s.place_id = z.place_id;
 
+
+
 # COMMAND ----------
 
 # MAGIC %md
@@ -201,6 +221,8 @@
 # MAGIC available runs. Ties are resolved deterministically. An older source cannot overwrite a newer
 # MAGIC business description. Extraction bounds describe businesses available in Silver, not API job logs.
 # MAGIC The date dimension covers 2026 through 2031 and is insert-only (SCD0).
+
+
 
 # COMMAND ----------
 
@@ -217,6 +239,8 @@
 # MAGIC   FROM gold_classified
 # MAGIC ) WHERE rn = 1;
 
+
+
 # COMMAND ----------
 
 # MAGIC %sql
@@ -231,6 +255,8 @@
 # MAGIC   SUM(source_observation_count) AS source_observation_count
 # MAGIC FROM gold_classified GROUP BY extraction_key, run_id;
 
+
+
 # COMMAND ----------
 
 # MAGIC %sql
@@ -244,176 +270,7 @@
 # MAGIC   weekday(calendar_date) IN (5, 6) AS is_weekend
 # MAGIC FROM explode(sequence(DATE '2026-01-01', DATE '2031-12-31', INTERVAL 1 DAY)) AS dates(calendar_date);
 
-# COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- Create dim_category without replacing existing dimension data.
-# MAGIC CREATE TABLE IF NOT EXISTS places_ratings.gold.dim_category
-# MAGIC USING DELTA AS SELECT * FROM gold_category_source WHERE 1 = 0;
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC -- Reject duplicate dimension keys before loading dim_category.
-# MAGIC SELECT assert_true(COUNT(*) = COUNT(DISTINCT category_key), 'Duplicate key in dim_category.') AS uniqueness_check
-# MAGIC FROM places_ratings.gold.dim_category;
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC -- Upsert dim_category using its deterministic key.
-# MAGIC MERGE INTO places_ratings.gold.dim_category AS target
-# MAGIC USING gold_category_source AS source ON target.category_key = source.category_key
-# MAGIC WHEN MATCHED AND NOT ((target.category_name <=> source.category_name)
-# MAGIC  AND (target.display_order <=> source.display_order)) THEN UPDATE SET *
-# MAGIC WHEN NOT MATCHED THEN INSERT *;
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC -- Create dim_zone without replacing existing dimension data.
-# MAGIC CREATE TABLE IF NOT EXISTS places_ratings.gold.dim_zone
-# MAGIC USING DELTA AS SELECT * FROM gold_zone_source WHERE 1 = 0;
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC -- Reject duplicate dimension keys before loading dim_zone.
-# MAGIC SELECT assert_true(COUNT(*) = COUNT(DISTINCT zone_key), 'Duplicate key in dim_zone.') AS uniqueness_check
-# MAGIC FROM places_ratings.gold.dim_zone;
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC -- Upsert dim_zone using its deterministic key.
-# MAGIC MERGE INTO places_ratings.gold.dim_zone AS target
-# MAGIC USING gold_zone_source AS source ON target.zone_key = source.zone_key
-# MAGIC WHEN MATCHED AND NOT ((target.zone_name <=> source.zone_name)
-# MAGIC  AND (target.city_name <=> source.city_name)) THEN UPDATE SET *
-# MAGIC WHEN NOT MATCHED THEN INSERT *;
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC -- Create dim_price_level without replacing existing dimension data.
-# MAGIC CREATE TABLE IF NOT EXISTS places_ratings.gold.dim_price_level
-# MAGIC USING DELTA AS SELECT * FROM gold_price_source WHERE 1 = 0;
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC -- Reject duplicate dimension keys before loading dim_price_level.
-# MAGIC SELECT assert_true(COUNT(*) = COUNT(DISTINCT price_level_key), 'Duplicate key in dim_price_level.') AS uniqueness_check
-# MAGIC FROM places_ratings.gold.dim_price_level;
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC -- Upsert dim_price_level using its deterministic key.
-# MAGIC MERGE INTO places_ratings.gold.dim_price_level AS target
-# MAGIC USING gold_price_source AS source ON target.price_level_key = source.price_level_key
-# MAGIC WHEN MATCHED AND NOT ((target.source_price_level <=> source.source_price_level)
-# MAGIC  AND (target.price_level_name <=> source.price_level_name)
-# MAGIC  AND (target.price_order <=> source.price_order)) THEN UPDATE SET *
-# MAGIC WHEN NOT MATCHED THEN INSERT *;
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC -- Create dim_date without replacing existing dimension data.
-# MAGIC CREATE TABLE IF NOT EXISTS places_ratings.gold.dim_date
-# MAGIC USING DELTA AS SELECT * FROM gold_date_source WHERE 1 = 0;
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC -- Reject duplicate dimension keys before loading dim_date.
-# MAGIC SELECT assert_true(COUNT(*) = COUNT(DISTINCT date_key), 'Duplicate key in dim_date.') AS uniqueness_check
-# MAGIC FROM places_ratings.gold.dim_date;
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC -- Upsert dim_date using its deterministic key.
-# MAGIC MERGE INTO places_ratings.gold.dim_date AS target
-# MAGIC USING gold_date_source AS source ON target.date_key = source.date_key
-# MAGIC
-# MAGIC WHEN NOT MATCHED THEN INSERT *;
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC -- Create dim_extraction without replacing existing dimension data.
-# MAGIC CREATE TABLE IF NOT EXISTS places_ratings.gold.dim_extraction
-# MAGIC USING DELTA AS SELECT * FROM gold_extraction_source WHERE 1 = 0;
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC -- Reject duplicate dimension keys before loading dim_extraction.
-# MAGIC SELECT assert_true(COUNT(*) = COUNT(DISTINCT extraction_key), 'Duplicate key in dim_extraction.') AS uniqueness_check
-# MAGIC FROM places_ratings.gold.dim_extraction;
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC -- Upsert dim_extraction using its deterministic key.
-# MAGIC MERGE INTO places_ratings.gold.dim_extraction AS target
-# MAGIC USING gold_extraction_source AS source ON target.extraction_key = source.extraction_key
-# MAGIC WHEN MATCHED AND NOT ((target.run_id <=> source.run_id)
-# MAGIC  AND (target.started_at_utc <=> source.started_at_utc)
-# MAGIC  AND (target.finished_at_utc <=> source.finished_at_utc)
-# MAGIC  AND (target.mapping_versions <=> source.mapping_versions)
-# MAGIC  AND (target.field_set_versions <=> source.field_set_versions)
-# MAGIC  AND (target.source_business_count <=> source.source_business_count)
-# MAGIC  AND (target.source_observation_count <=> source.source_observation_count)) THEN UPDATE SET *
-# MAGIC WHEN NOT MATCHED THEN INSERT *;
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC -- Create dim_business without replacing existing dimension data.
-# MAGIC CREATE TABLE IF NOT EXISTS places_ratings.gold.dim_business
-# MAGIC USING DELTA AS SELECT * FROM gold_business_source WHERE 1 = 0;
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC -- Reject duplicate dimension keys before loading dim_business.
-# MAGIC SELECT assert_true(COUNT(*) = COUNT(DISTINCT business_key), 'Duplicate key in dim_business.') AS uniqueness_check
-# MAGIC FROM places_ratings.gold.dim_business;
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC -- Upsert dim_business using its deterministic key.
-# MAGIC MERGE INTO places_ratings.gold.dim_business AS target
-# MAGIC USING gold_business_source AS source ON target.business_key = source.business_key
-# MAGIC WHEN MATCHED AND (source.attributes_observed_at_utc > target.attributes_observed_at_utc
-# MAGIC  OR (source.attributes_observed_at_utc = target.attributes_observed_at_utc
-# MAGIC  AND source.attributes_run_id >= target.attributes_run_id))
-# MAGIC  AND NOT ((target.place_id <=> source.place_id)
-# MAGIC  AND (target.business_name <=> source.business_name)
-# MAGIC  AND (target.name_language <=> source.name_language)
-# MAGIC  AND (target.primary_type <=> source.primary_type)
-# MAGIC  AND (target.formatted_address <=> source.formatted_address)
-# MAGIC  AND (target.latitude <=> source.latitude)
-# MAGIC  AND (target.longitude <=> source.longitude)
-# MAGIC  AND (target.attributes_observed_at_utc <=> source.attributes_observed_at_utc)
-# MAGIC  AND (target.attributes_run_id <=> source.attributes_run_id)) THEN UPDATE SET *
-# MAGIC WHEN NOT MATCHED THEN INSERT *;
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## 3. Prepare facts and retrieval-category memberships
-# MAGIC Keep one fact per business/extraction. Price, status, contact information and availability
-# MAGIC describe that capture. Availability flags mean **reported by the source**, not verified absence.
-# MAGIC Historical rating and review count are not additive across extractions; ratings are not additive
-# MAGIC across businesses either. Medians and distributions are computed in views, not stored as facts.
-# MAGIC
-# MAGIC The bridge has one row per business/extraction/requested category. It describes detection,
-# MAGIC not a verified list of all business activities. Never sum category-membership counts as a global total.
 
 # COMMAND ----------
 
@@ -437,6 +294,8 @@
 # MAGIC   classification_rule_version, zone_rule_version
 # MAGIC FROM gold_classified;
 
+
+
 # COMMAND ----------
 
 # MAGIC %sql
@@ -446,6 +305,8 @@
 # MAGIC   current_timestamp() AS gold_ingested_at
 # MAGIC FROM gold_fact_base AS base;
 
+
+
 # COMMAND ----------
 
 # MAGIC %sql
@@ -454,6 +315,170 @@
 # MAGIC SELECT DISTINCT source.business_key, source.extraction_key, membership.category_key
 # MAGIC FROM gold_classified AS source,
 # MAGIC LATERAL explode(source.requested_categories) AS membership(category_key);
+
+
+
+# COMMAND ----------
+# MAGIC %md
+# MAGIC ## Create Gold tables from the prepared source schemas
+
+# COMMAND ----------
+# MAGIC %run "../../DDL/gold/07_places_gold_ddl"
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC -- Reject duplicate dimension keys before loading dim_category.
+# MAGIC SELECT assert_true(COUNT(*) = COUNT(DISTINCT category_key), 'Duplicate key in dim_category.') AS uniqueness_check
+# MAGIC FROM places_ratings.gold.dim_category;
+
+
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC -- Upsert dim_category using its deterministic key.
+# MAGIC MERGE INTO places_ratings.gold.dim_category AS target
+# MAGIC USING gold_category_source AS source ON target.category_key = source.category_key
+# MAGIC WHEN MATCHED AND NOT ((target.category_name <=> source.category_name)
+# MAGIC  AND (target.display_order <=> source.display_order)) THEN UPDATE SET *
+# MAGIC WHEN NOT MATCHED THEN INSERT *;
+
+
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC -- Reject duplicate dimension keys before loading dim_zone.
+# MAGIC SELECT assert_true(COUNT(*) = COUNT(DISTINCT zone_key), 'Duplicate key in dim_zone.') AS uniqueness_check
+# MAGIC FROM places_ratings.gold.dim_zone;
+
+
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC -- Upsert dim_zone using its deterministic key.
+# MAGIC MERGE INTO places_ratings.gold.dim_zone AS target
+# MAGIC USING gold_zone_source AS source ON target.zone_key = source.zone_key
+# MAGIC WHEN MATCHED AND NOT ((target.zone_name <=> source.zone_name)
+# MAGIC  AND (target.city_name <=> source.city_name)) THEN UPDATE SET *
+# MAGIC WHEN NOT MATCHED THEN INSERT *;
+
+
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC -- Reject duplicate dimension keys before loading dim_price_level.
+# MAGIC SELECT assert_true(COUNT(*) = COUNT(DISTINCT price_level_key), 'Duplicate key in dim_price_level.') AS uniqueness_check
+# MAGIC FROM places_ratings.gold.dim_price_level;
+
+
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC -- Upsert dim_price_level using its deterministic key.
+# MAGIC MERGE INTO places_ratings.gold.dim_price_level AS target
+# MAGIC USING gold_price_source AS source ON target.price_level_key = source.price_level_key
+# MAGIC WHEN MATCHED AND NOT ((target.source_price_level <=> source.source_price_level)
+# MAGIC  AND (target.price_level_name <=> source.price_level_name)
+# MAGIC  AND (target.price_order <=> source.price_order)) THEN UPDATE SET *
+# MAGIC WHEN NOT MATCHED THEN INSERT *;
+
+
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC -- Reject duplicate dimension keys before loading dim_date.
+# MAGIC SELECT assert_true(COUNT(*) = COUNT(DISTINCT date_key), 'Duplicate key in dim_date.') AS uniqueness_check
+# MAGIC FROM places_ratings.gold.dim_date;
+
+
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC -- Upsert dim_date using its deterministic key.
+# MAGIC MERGE INTO places_ratings.gold.dim_date AS target
+# MAGIC USING gold_date_source AS source ON target.date_key = source.date_key
+# MAGIC
+# MAGIC WHEN NOT MATCHED THEN INSERT *;
+
+
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC -- Reject duplicate dimension keys before loading dim_extraction.
+# MAGIC SELECT assert_true(COUNT(*) = COUNT(DISTINCT extraction_key), 'Duplicate key in dim_extraction.') AS uniqueness_check
+# MAGIC FROM places_ratings.gold.dim_extraction;
+
+
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC -- Upsert dim_extraction using its deterministic key.
+# MAGIC MERGE INTO places_ratings.gold.dim_extraction AS target
+# MAGIC USING gold_extraction_source AS source ON target.extraction_key = source.extraction_key
+# MAGIC WHEN MATCHED AND NOT ((target.run_id <=> source.run_id)
+# MAGIC  AND (target.started_at_utc <=> source.started_at_utc)
+# MAGIC  AND (target.finished_at_utc <=> source.finished_at_utc)
+# MAGIC  AND (target.mapping_versions <=> source.mapping_versions)
+# MAGIC  AND (target.field_set_versions <=> source.field_set_versions)
+# MAGIC  AND (target.source_business_count <=> source.source_business_count)
+# MAGIC  AND (target.source_observation_count <=> source.source_observation_count)) THEN UPDATE SET *
+# MAGIC WHEN NOT MATCHED THEN INSERT *;
+
+
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC -- Reject duplicate dimension keys before loading dim_business.
+# MAGIC SELECT assert_true(COUNT(*) = COUNT(DISTINCT business_key), 'Duplicate key in dim_business.') AS uniqueness_check
+# MAGIC FROM places_ratings.gold.dim_business;
+
+
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC -- Upsert dim_business using its deterministic key.
+# MAGIC MERGE INTO places_ratings.gold.dim_business AS target
+# MAGIC USING gold_business_source AS source ON target.business_key = source.business_key
+# MAGIC WHEN MATCHED AND (source.attributes_observed_at_utc > target.attributes_observed_at_utc
+# MAGIC  OR (source.attributes_observed_at_utc = target.attributes_observed_at_utc
+# MAGIC  AND source.attributes_run_id >= target.attributes_run_id))
+# MAGIC  AND NOT ((target.place_id <=> source.place_id)
+# MAGIC  AND (target.business_name <=> source.business_name)
+# MAGIC  AND (target.name_language <=> source.name_language)
+# MAGIC  AND (target.primary_type <=> source.primary_type)
+# MAGIC  AND (target.formatted_address <=> source.formatted_address)
+# MAGIC  AND (target.latitude <=> source.latitude)
+# MAGIC  AND (target.longitude <=> source.longitude)
+# MAGIC  AND (target.attributes_observed_at_utc <=> source.attributes_observed_at_utc)
+# MAGIC  AND (target.attributes_run_id <=> source.attributes_run_id)) THEN UPDATE SET *
+# MAGIC WHEN NOT MATCHED THEN INSERT *;
+
+
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## 3. Prepare facts and retrieval-category memberships
+# MAGIC Keep one fact per business/extraction. Price, status, contact information and availability
+# MAGIC describe that capture. Availability flags mean **reported by the source**, not verified absence.
+# MAGIC Historical rating and review count are not additive across extractions; ratings are not additive
+# MAGIC across businesses either. Medians and distributions are computed in views, not stored as facts.
+# MAGIC
+# MAGIC The bridge has one row per business/extraction/requested category. It describes detection,
+# MAGIC not a verified list of all business activities. Never sum category-membership counts as a global total.
+
+
 
 # COMMAND ----------
 
@@ -469,12 +494,7 @@
 # MAGIC   assert_true((SELECT COUNT(*) FROM gold_bridge_source WHERE category_key IS NULL) = 0,
 # MAGIC     'Null category in bridge.') AS bridge_identity_check;
 
-# COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- Create fact_business_snapshot as a managed Delta table without replacing existing rows.
-# MAGIC CREATE TABLE IF NOT EXISTS places_ratings.gold.fact_business_snapshot
-# MAGIC USING DELTA AS SELECT * FROM gold_fact_source WHERE 1 = 0;
 
 # COMMAND ----------
 
@@ -483,6 +503,8 @@
 # MAGIC SELECT assert_true(COUNT(*) = COUNT(DISTINCT struct(business_key, extraction_key)),
 # MAGIC  'Duplicate target identity in fact_business_snapshot.') AS target_grain_check
 # MAGIC FROM places_ratings.gold.fact_business_snapshot;
+
+
 
 # COMMAND ----------
 
@@ -501,6 +523,8 @@
 # MAGIC   target.zone_rule_version = source.zone_rule_version,
 # MAGIC   target.fact_content_hash = source.fact_content_hash;
 
+
+
 # COMMAND ----------
 
 # MAGIC %sql
@@ -512,6 +536,8 @@
 # MAGIC   ON target.business_key = source.business_key AND target.extraction_key = source.extraction_key
 # MAGIC WHERE NOT (target.fact_content_hash <=> source.fact_content_hash);
 
+
+
 # COMMAND ----------
 
 # MAGIC %sql
@@ -520,12 +546,7 @@
 # MAGIC USING gold_fact_source AS source ON target.business_key = source.business_key AND target.extraction_key = source.extraction_key
 # MAGIC WHEN NOT MATCHED THEN INSERT *;
 
-# COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- Create bridge_business_category as a managed Delta table without replacing existing rows.
-# MAGIC CREATE TABLE IF NOT EXISTS places_ratings.gold.bridge_business_category
-# MAGIC USING DELTA AS SELECT * FROM gold_bridge_source WHERE 1 = 0;
 
 # COMMAND ----------
 
@@ -534,6 +555,8 @@
 # MAGIC SELECT assert_true(COUNT(*) = COUNT(DISTINCT struct(business_key, extraction_key, category_key)),
 # MAGIC  'Duplicate target identity in bridge_business_category.') AS target_grain_check
 # MAGIC FROM places_ratings.gold.bridge_business_category;
+
+
 
 # COMMAND ----------
 
@@ -548,6 +571,8 @@
 # MAGIC   SELECT * FROM gold_bridge_source
 # MAGIC ) AS unexpected;
 
+
+
 # COMMAND ----------
 
 # MAGIC %sql
@@ -556,12 +581,16 @@
 # MAGIC USING gold_bridge_source AS source ON target.business_key = source.business_key AND target.extraction_key = source.extraction_key AND target.category_key = source.category_key
 # MAGIC WHEN NOT MATCHED THEN INSERT *;
 
+
+
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ## 4. Reconcile loaded data and dimension references
 # MAGIC Checks validate the actual tables: key uniqueness, source reconciliation, bridge membership
 # MAGIC equality and all dimension references. They do not establish representativeness of the sample.
+
+
 
 # COMMAND ----------
 
@@ -577,6 +606,8 @@
 # MAGIC     SELECT * FROM gold_bridge_source EXCEPT
 # MAGIC     SELECT * FROM places_ratings.gold.bridge_business_category
 # MAGIC   ) AS missing) = 0, 'Bridge membership missing from Gold.') AS bridge_reconciliation_check;
+
+
 
 # COMMAND ----------
 
@@ -609,6 +640,8 @@
 # MAGIC LEFT ANTI JOIN places_ratings.gold.dim_zone AS d ON f.zone_key = d.zone_key
 # MAGIC ) AS checks;
 
+
+
 # COMMAND ----------
 
 # MAGIC %sql
@@ -622,10 +655,22 @@
 # MAGIC     LEFT ANTI JOIN places_ratings.gold.dim_category AS c ON b.category_key = c.category_key) = 0,
 # MAGIC     'Bridge without a category.') AS bridge_dimension_check;
 
+
+
+# COMMAND ----------
+# MAGIC %md
+# MAGIC ## 5. Create and refresh the semantic layer
+
+# COMMAND ----------
+# MAGIC %run "../../DDL/semantic/08_places_semantic_ddl"
+
+# COMMAND ----------
+# MAGIC %run "../../views/08_places_semantic_views"
+
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 5. Publish Gold-only analytical views
+# MAGIC ### Semantic view behavior
 # MAGIC `v_business_explorer` has one row per fact and supports rankings, filters and scatter plots.
 # MAGIC It uses the latest business description (SCD1), with historical capture metrics/context.
 # MAGIC `v_business_category_memberships` expands retrieval categories and can repeat businesses.
@@ -650,89 +695,7 @@
 # MAGIC They do not measure population market share. Discovery limits and non-random sampling still apply.
 # MAGIC Display `Por clasificar` separately. Do not sum across different runs.
 
-# COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- Publish a convenient one-row-per-business/extraction view entirely from Gold tables.
-# MAGIC CREATE OR REPLACE VIEW places_ratings.gold.v_business_explorer AS
-# MAGIC SELECT f.*, b.place_id, b.business_name, b.primary_type, b.formatted_address,
-# MAGIC   b.latitude, b.longitude, e.run_id, e.started_at_utc, e.finished_at_utc,
-# MAGIC   d.calendar_date AS observation_date,
-# MAGIC   c.category_name AS primary_category_name,
-# MAGIC   z.zone_name, z.city_name AS assigned_zone_city,
-# MAGIC   p.price_level_name, p.price_order
-# MAGIC FROM places_ratings.gold.fact_business_snapshot AS f
-# MAGIC JOIN places_ratings.gold.dim_business AS b ON f.business_key = b.business_key
-# MAGIC JOIN places_ratings.gold.dim_extraction AS e ON f.extraction_key = e.extraction_key
-# MAGIC JOIN places_ratings.gold.dim_date AS d ON f.date_key = d.date_key
-# MAGIC JOIN places_ratings.gold.dim_category AS c ON f.primary_category_key = c.category_key
-# MAGIC JOIN places_ratings.gold.dim_zone AS z ON f.zone_key = z.zone_key
-# MAGIC JOIN places_ratings.gold.dim_price_level AS p ON f.price_level_key = p.price_level_key;
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC -- Publish detected-category memberships without querying Silver or reclassifying businesses.
-# MAGIC CREATE OR REPLACE VIEW places_ratings.gold.v_business_category_memberships AS
-# MAGIC SELECT e.*, b.category_key AS detected_category_key, c.category_name AS detected_category_name
-# MAGIC FROM places_ratings.gold.v_business_explorer AS e
-# MAGIC JOIN places_ratings.gold.bridge_business_category AS b
-# MAGIC   ON e.business_key = b.business_key AND e.extraction_key = b.extraction_key
-# MAGIC JOIN places_ratings.gold.dim_category AS c ON b.category_key = c.category_key;
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC -- Compare review presence, volume and observed pool size without treating missing counts as zero.
-# MAGIC CREATE OR REPLACE VIEW places_ratings.gold.v_category_metrics AS
-# MAGIC WITH category_metrics AS (
-# MAGIC SELECT run_id, primary_category_key, primary_category_name,
-# MAGIC   COUNT(*) AS businesses,
-# MAGIC   COUNT(rating) AS businesses_with_rating,
-# MAGIC   COUNT(review_count) AS businesses_with_review_count,
-# MAGIC   COUNT(*) - COUNT(review_count) AS businesses_missing_review_count,
-# MAGIC   COUNT_IF(review_count > 0) AS businesses_with_reviews,
-# MAGIC   COUNT_IF(review_count = 0) AS businesses_with_zero_reviews,
-# MAGIC   ROUND(100.0 * COUNT(review_count) / COUNT(*), 2) AS pct_reporting_review_count,
-# MAGIC   ROUND(100.0 * COUNT_IF(review_count > 0) / COUNT(*), 2) AS pct_with_reviews,
-# MAGIC   ROUND(100.0 * COUNT_IF(review_count = 0) / COUNT(*), 2) AS pct_with_zero_reviews,
-# MAGIC   ROUND(100.0 * (COUNT(*) - COUNT(review_count)) / COUNT(*), 2) AS pct_missing_review_count,
-# MAGIC   ROUND(100.0 * COUNT_IF(review_count > 0) / NULLIF(COUNT(review_count), 0), 2)
-# MAGIC     AS pct_with_reviews_among_reported,
-# MAGIC   COUNT_IF(review_count >= 10) AS businesses_with_at_least_10_reviews,
-# MAGIC   COUNT_IF(review_count >= 50) AS businesses_with_at_least_50_reviews,
-# MAGIC   percentile_cont(0.5) WITHIN GROUP (ORDER BY review_count) AS median_review_count,
-# MAGIC   ROUND(AVG(review_count), 2) AS mean_review_count,
-# MAGIC   ROUND(AVG(rating), 2) AS mean_business_rating,
-# MAGIC   percentile_cont(0.5) WITHIN GROUP (ORDER BY rating) AS median_business_rating,
-# MAGIC   COUNT_IF(has_website) AS businesses_reporting_website,
-# MAGIC   ROUND(100.0 * COUNT_IF(has_website) / COUNT(*), 2) AS pct_reporting_website,
-# MAGIC   ROUND(100.0 * COUNT_IF(has_phone) / COUNT(*), 2) AS pct_reporting_phone,
-# MAGIC   ROUND(100.0 * COUNT_IF(has_opening_hours) / COUNT(*), 2) AS pct_reporting_hours
-# MAGIC FROM places_ratings.gold.v_business_explorer
-# MAGIC GROUP BY run_id, primary_category_key, primary_category_name
-# MAGIC )
-# MAGIC SELECT *,
-# MAGIC   ROUND(100.0 * businesses_with_reviews /
-# MAGIC     NULLIF(SUM(businesses_with_reviews) OVER (PARTITION BY run_id), 0), 2)
-# MAGIC     AS pct_of_run_businesses_with_reviews
-# MAGIC FROM category_metrics;
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC -- Compare ordinal price groups inside each primary category, retaining coverage denominators.
-# MAGIC CREATE OR REPLACE VIEW places_ratings.gold.v_price_reputation AS
-# MAGIC SELECT run_id, primary_category_key, primary_category_name,
-# MAGIC   price_level_key, price_level_name, price_order,
-# MAGIC   COUNT(*) AS businesses, COUNT(rating) AS businesses_with_rating,
-# MAGIC   COUNT(review_count) AS businesses_with_review_count,
-# MAGIC   ROUND(AVG(rating), 2) AS mean_business_rating,
-# MAGIC   percentile_cont(0.5) WITHIN GROUP (ORDER BY rating) AS median_business_rating,
-# MAGIC   percentile_cont(0.5) WITHIN GROUP (ORDER BY review_count) AS median_review_count
-# MAGIC FROM places_ratings.gold.v_business_explorer
-# MAGIC GROUP BY run_id, primary_category_key, primary_category_name,
-# MAGIC   price_level_key, price_level_name, price_order;
 
 # COMMAND ----------
 
@@ -745,6 +708,8 @@
 # MAGIC Highest-rating examples use a **configurable illustrative threshold of 30 reviews**;
 # MAGIC this is not a validated quality criterion or evidence of NFC demand.
 
+
+
 # COMMAND ----------
 
 # MAGIC %sql
@@ -756,14 +721,18 @@
 # MAGIC JOIN places_ratings.gold.dim_extraction AS e ON f.extraction_key = e.extraction_key
 # MAGIC GROUP BY e.run_id ORDER BY e.run_id;
 
+
+
 # COMMAND ----------
 
 # MAGIC %sql
 # MAGIC -- Inspect classification and zone coverage without excluding unresolved businesses.
 # MAGIC SELECT run_id, primary_category_name, zone_name, COUNT(*) AS businesses
-# MAGIC FROM places_ratings.gold.v_business_explorer
+# MAGIC FROM places_ratings.semantic.v_business_explorer
 # MAGIC GROUP BY run_id, primary_category_name, zone_name
 # MAGIC ORDER BY run_id, primary_category_name, businesses DESC;
+
+
 
 # COMMAND ----------
 
@@ -776,9 +745,11 @@
 # MAGIC   median_review_count, mean_review_count,
 # MAGIC   pct_of_run_businesses_with_reviews,
 # MAGIC   businesses_with_at_least_10_reviews, businesses_with_at_least_50_reviews
-# MAGIC FROM places_ratings.gold.v_category_metrics
+# MAGIC FROM places_ratings.semantic.v_category_metrics
 # MAGIC WHERE run_id = 'baseline_001'
 # MAGIC ORDER BY pct_with_reviews DESC, businesses_with_reviews DESC;
+
+
 
 # COMMAND ----------
 
@@ -786,20 +757,24 @@
 # MAGIC -- Inspect highly rated businesses using an illustrative minimum of 30 reported reviews.
 # MAGIC SELECT business_name, primary_category_name, rating, review_count,
 # MAGIC   price_level_name, zone_name, google_maps_uri
-# MAGIC FROM places_ratings.gold.v_business_explorer
+# MAGIC FROM places_ratings.semantic.v_business_explorer
 # MAGIC WHERE run_id = 'baseline_001' AND rating IS NOT NULL AND review_count >= 30
 # MAGIC ORDER BY rating DESC, review_count DESC, place_id LIMIT 20;
+
+
 
 # COMMAND ----------
 
 # MAGIC %sql
 # MAGIC -- Find businesses detected in both cafe and restaurant searches using Gold only.
 # MAGIC SELECT place_id, business_name, primary_category_name, MAX(review_count) AS review_count
-# MAGIC FROM places_ratings.gold.v_business_category_memberships
+# MAGIC FROM places_ratings.semantic.v_business_category_memberships
 # MAGIC WHERE run_id = 'baseline_001' AND detected_category_key IN ('cafes', 'restaurants')
 # MAGIC GROUP BY business_key, extraction_key, place_id, business_name, primary_category_name
 # MAGIC HAVING COUNT(DISTINCT detected_category_key) = 2
 # MAGIC ORDER BY review_count DESC NULLS LAST;
+
+
 
 # COMMAND ----------
 
@@ -818,10 +793,12 @@
 # MAGIC     percentile_cont(0.5)
 # MAGIC         WITHIN GROUP (ORDER BY review_count) AS median_review_count,
 # MAGIC     COUNT_IF(review_count >= 50) AS businesses_with_at_least_50_reviews
-# MAGIC FROM places_ratings.gold.v_business_explorer
+# MAGIC FROM places_ratings.semantic.v_business_explorer
 # MAGIC WHERE run_id = 'baseline_001'
 # MAGIC GROUP BY zone_name, primary_category_name
 # MAGIC ORDER BY zone_name, pct_with_reviews DESC, businesses DESC;
+
+
 
 # COMMAND ----------
 
@@ -836,12 +813,14 @@
 # MAGIC     median_business_rating,
 # MAGIC     round(mean_business_rating,2) AS mean_business_rating,
 # MAGIC     median_review_count
-# MAGIC FROM places_ratings.gold.v_price_reputation
+# MAGIC FROM places_ratings.semantic.v_price_reputation
 # MAGIC WHERE run_id = 'baseline_001'
 # MAGIC ORDER BY
 # MAGIC     primary_category_name,
 # MAGIC     price_order ASC NULLS LAST,
 # MAGIC     price_level_name;
+
+
 
 # COMMAND ----------
 
@@ -868,7 +847,7 @@
 # MAGIC             WHEN review_count <= 1000 THEN '201–1000'
 # MAGIC             ELSE 'Más de 1000'
 # MAGIC         END AS review_count_band
-# MAGIC     FROM places_ratings.gold.v_business_explorer
+# MAGIC     FROM places_ratings.semantic.v_business_explorer
 # MAGIC     WHERE run_id = 'baseline_001'
 # MAGIC )
 # MAGIC SELECT
@@ -886,6 +865,8 @@
 # MAGIC GROUP BY primary_category_name, band_order, review_count_band
 # MAGIC ORDER BY primary_category_name, band_order;
 
+
+
 # COMMAND ----------
 
 # MAGIC %md
@@ -901,3 +882,5 @@
 # MAGIC reconciliation must be completed in Databricks. SQL references:
 # MAGIC [MERGE](https://docs.databricks.com/aws/en/sql/language-manual/delta-merge-into) and
 # MAGIC [explode](https://docs.databricks.com/aws/en/sql/language-manual/functions/explode).
+
+

@@ -25,12 +25,12 @@ from pathlib import Path
 working_directory = Path.cwd().resolve()
 REPO_ROOT = next((p for p in [working_directory, *working_directory.parents]
                   if (p / 'config/place_details.json').is_file()
-                  and (p / 'src/ingestion').is_dir()), None)
+                  and (p / 'src/ETL/landing/ingestion').is_dir()), None)
 if REPO_ROOT is None:
     raise RuntimeError('Enrichment configuration not found in this Git folder.')
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-from src.ingestion import place_details
+from src.ETL.landing.ingestion import place_details
 importlib.reload(place_details)
 
 # COMMAND ----------

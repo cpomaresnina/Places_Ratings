@@ -43,7 +43,7 @@ flowchart LR
     D --> E[Silver preparation\nOne row per appearance]
     E --> F[Consolidated Silver\nOne row per run and place ID]
     F --> G[Gold\nDimensions, facts and category bridge]
-    G --> H[Gold analytical views]
+    G --> H[Semantic layer\nConsumer-facing views]
     H --> I[Databricks AI/BI dashboard]
 ```
 
@@ -72,16 +72,16 @@ S3 is used for landing. Bronze, Silver and Gold are managed Delta tables in Data
 | [Review and remaining work](docs/project_review.md) | Review evidence and prioritized follow-up |
 | [Portfolio case study](portfolio/places_ratings_case_study.md) | Project presentation for GitHub |
 | `config/places_baseline.json` | Current baseline definition |
-| `src/ingestion/` | API access, planning, persistence and resume logic |
-| `notebooks/ingestion/02c_places_baseline.py` | Current collector entry point |
-| `notebooks/bronze/03_places_bronze_clean.py` | Persist original responses in Bronze |
-| `notebooks/silver/04_places_silver.py` | Parse responses and create temporary observation views |
-| `notebooks/silver/EDA/05_places_eda.py` | Observation- and business-level EDA |
-| `notebooks/silver/06_places_silver_load.py` | Persist consolidated business snapshots |
-| `notebooks/gold/07_places_gold.py` | Build and load Gold; publish analytical views |
+| `src/DDL/` | Databricks notebooks for catalog schemas and persistent table definitions, organized by layer |
+| `src/ETL/landing/` | API collection notebooks and reusable ingestion modules |
+| `src/ETL/bronze/03_places_bronze_clean.py` | Persist original responses in Bronze; invokes its DDL notebook |
+| `src/ETL/silver/` | Parse responses, run EDA and load consolidated business snapshots |
+| `src/ETL/gold/07_places_gold.py` | Build and load Gold; invokes Gold DDL and refreshes the semantic layer |
+| `src/views/` | Consumer-facing semantic view definitions over Gold |
+| `jobs/` | Reserved for Databricks job YAML definitions |
 | [Dashboard export](Dashboards/Places%20Ratings.lvdash.json) | Importable three-page dashboard definition |
 
-The exploration notebooks, `02_places_api_ingestion.py` and `02b_place_details_enrichment.py` document earlier iterations. They are not additional mandatory extraction steps for the current full-context baseline. Do not run every notebook indiscriminately.
+The landing exploration notebooks, `02_places_api_ingestion.py` and `02b_place_details_enrichment.py` document earlier iterations. They are not additional mandatory extraction steps for the current full-context baseline. Do not run every notebook indiscriminately.
 
 ## Run it
 

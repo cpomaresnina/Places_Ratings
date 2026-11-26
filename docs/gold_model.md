@@ -2,7 +2,7 @@
 
 ## Ejecución
 
-Importar `notebooks/gold/07_places_gold.py` como notebook en Databricks y ejecutar de arriba abajo.
+Importar `src/ETL/gold/07_places_gold.py` como notebook en Databricks y ejecutar de arriba abajo.
 La única fuente es `places_ratings.silver.business_snapshots`, ya persistida. No se llama a Google
 ni se relee S3. Las tablas nuevas son Delta administradas en `places_ratings.gold`.
 
@@ -72,13 +72,13 @@ Silver y la versión de clasificación no cambiaron. No sustituye otras métrica
 
 ## Vistas para análisis
 
-- `v_business_explorer`: una fila por negocio/extracción, con dimensiones y métricas.
-- `v_business_category_memberships`: una fila por categoría detectada; puede repetir negocios.
-- `v_category_metrics`: presencia de al menos una valoración reportada, ceros explícitos y datos ausentes;
+- `semantic.v_business_explorer`: una fila por negocio/extracción, con dimensiones y métricas.
+- `semantic.v_business_category_memberships`: una fila por categoría detectada; puede repetir negocios.
+- `semantic.v_category_metrics`: presencia de al menos una valoración reportada, ceros explícitos y datos ausentes;
   medianas, medias y cobertura por categoría principal y extracción. También incluye cantidades
   con al menos 10 y 50 valoraciones (umbrales exploratorios) y participación de cada categoría
   en el total de negocios con al menos una valoración reportada de esa extracción.
-- `v_price_reputation`: reputación por categoría principal y rango de precio, incluidos valores desconocidos.
+- `semantic.v_price_reputation`: reputación por categoría principal y rango de precio, incluidos valores desconocidos.
 
 Las vistas permanentes leen exclusivamente Gold. Los conteos por categoría principal se pueden sumar
 por extracción; los de categorías detectadas se superponen. La media de puntuación es una media

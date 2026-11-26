@@ -35,42 +35,24 @@
 # MAGIC The existing table must have the current columns; review SHOW CREATE TABLE
 # MAGIC if a column-resolution error occurs.
 
+
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ## 1. Define the schema and table
 
+
 # COMMAND ----------
-
-# MAGIC %sql
-# MAGIC -- Create the Bronze schema and table without replacing existing data.
-# MAGIC CREATE SCHEMA IF NOT EXISTS places_ratings.bronze
-# MAGIC COMMENT 'Original source responses and ingestion metadata';
-# MAGIC
-# MAGIC CREATE TABLE IF NOT EXISTS places_ratings.bronze.api_responses (
-# MAGIC     source_file_path STRING,
-# MAGIC     source_modified_at TIMESTAMP,
-# MAGIC     source_size_bytes BIGINT,
-# MAGIC     source_content_hash STRING,
-# MAGIC     extraction_id STRING,
-# MAGIC     data_kind STRING,
-# MAGIC     study_area STRING,
-# MAGIC     requested_category STRING,
-# MAGIC     run_id STRING,
-# MAGIC     query_key STRING,
-# MAGIC     mapping_version STRING,
-# MAGIC     field_set_version STRING,
-# MAGIC     extracted_at_utc TIMESTAMP,
-# MAGIC     raw_json STRING,
-# MAGIC     bronze_ingested_at TIMESTAMP
-# MAGIC )
-# MAGIC USING DELTA
-# MAGIC COMMENT 'Original Places API baseline responses with execution metadata';
-
+# MAGIC %md
+# MAGIC ## 1. Create or confirm the Bronze target
+# MAGIC The DDL is maintained in ../../DDL/bronze/03_places_bronze_ddl.py.
+# COMMAND ----------
+# MAGIC %run "../../DDL/bronze/03_places_bronze_ddl"
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ## 2. Read the selected baseline and prepare metadata
+
 
 # COMMAND ----------
 
@@ -88,6 +70,7 @@
 # MAGIC     recursiveFileLookup => true,
 # MAGIC     pathGlobFilter => '*.json'
 # MAGIC );
+
 
 # COMMAND ----------
 
@@ -118,10 +101,12 @@
 # MAGIC     raw_json
 # MAGIC FROM places_bronze_source;
 
+
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ## 3. Inspect source counts and volume
+
 
 # COMMAND ----------
 
@@ -140,11 +125,13 @@
 # MAGIC FROM places_bronze_prepared
 # MAGIC GROUP BY run_id, mapping_version, field_set_version;
 
+
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ## 4. Validate before writing
 # MAGIC Successful assert_true checks return NULL. That is success, not missing data. A failed check raises an error.
+
 
 # COMMAND ----------
 
@@ -187,6 +174,7 @@
 # MAGIC     ) AS metadata_check
 # MAGIC FROM source_checks;
 
+
 # COMMAND ----------
 
 # MAGIC %sql
@@ -203,6 +191,7 @@
 # MAGIC     HAVING COUNT(*) > 1
 # MAGIC ) AS duplicate_keys;
 
+
 # COMMAND ----------
 
 # MAGIC %sql
@@ -217,10 +206,12 @@
 # MAGIC     AND target.query_key = source.query_key
 # MAGIC WHERE NOT (target.source_content_hash <=> source.source_content_hash);
 
+
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ## 5. Insert new responses
+
 
 # COMMAND ----------
 
@@ -266,10 +257,12 @@
 # MAGIC     current_timestamp()
 # MAGIC );
 
+
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ## 6. Verify persisted results
+
 
 # COMMAND ----------
 
@@ -286,6 +279,7 @@
 # MAGIC GROUP BY run_id, mapping_version, field_set_version
 # MAGIC ORDER BY run_id, mapping_version, field_set_version;
 
+
 # COMMAND ----------
 
 # MAGIC %sql
@@ -301,6 +295,7 @@
 # MAGIC WHERE target.query_key IS NULL
 # MAGIC     OR NOT (target.source_content_hash <=> source.source_content_hash);
 
+
 # COMMAND ----------
 
 # MAGIC %sql
@@ -311,6 +306,7 @@
 # MAGIC ) AS baseline_completeness_check
 # MAGIC FROM places_ratings.bronze.api_responses
 # MAGIC WHERE run_id = 'baseline_001';
+
 
 # COMMAND ----------
 
